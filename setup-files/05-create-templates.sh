@@ -2,10 +2,11 @@
 
 # Get variables from the main script via arguments
 DOMAIN_NAME=$1
+USER_EMAIL=$2
 
-if [ -z "$DOMAIN_NAME" ]; then
-  echo "ERROR: Domain name not specified"
-  echo "Usage: $0 example.com"
+if [ -z "$DOMAIN_NAME" ] || [ -z "$USER_EMAIL" ]; then
+  echo "ERROR: Domain name or user email not specified" >&2
+  echo "Usage: $0 <domain_name> <user_email>" >&2
   exit 1
 fi
 
@@ -170,6 +171,26 @@ else
   echo "Template netdata-docker-compose.yaml.template already exists"
 fi
 
+# Check for required templates
+REQUIRED_TEMPLATES=(
+    "n8n-docker-compose.yaml.template"
+    "flowise-docker-compose.yaml.template"
+    "qdrant-docker-compose.yaml.template"
+    "crawl4ai-docker-compose.yaml.template"
+    "watchtower-docker-compose.yaml.template"
+    "netdata-docker-compose.yaml.template"
+    "Caddyfile.template"
+)
+
+for TPL in "${REQUIRED_TEMPLATES[@]}"; do
+    if [ ! -f "$TPL" ]; then
+        echo "ERROR: Required template file '$TPL' not found in setup-files/ directory." >&2
+        echo "Please ensure all necessary template files are present." >&2
+        exit 1
+    fi
+done
+echo "All required template files found."
+
 # Copy templates to working files
 cp n8n-docker-compose.yaml.template n8n-docker-compose.yaml
 if [ $? -ne 0 ]; then
@@ -195,7 +216,6 @@ sudo cp qdrant-docker-compose.yaml "/opt/qdrant-docker-compose.yaml"
 sudo cp crawl4ai-docker-compose.yaml "/opt/crawl4ai-docker-compose.yaml"
 sudo cp watchtower-docker-compose.yaml "/opt/watchtower-docker-compose.yaml"
 sudo cp netdata-docker-compose.yaml "/opt/netdata-docker-compose.yaml"
-sudo cp .env "/opt/.env"
 
 # Check if copy operations were successful
 FILES_TO_CHECK=(
@@ -205,7 +225,7 @@ FILES_TO_CHECK=(
     "/opt/crawl4ai-docker-compose.yaml"
     "/opt/watchtower-docker-compose.yaml"
     "/opt/netdata-docker-compose.yaml"
-    "/opt/.env"
+    "/opt/Caddyfile"
 )
 
 COPY_FAILED=0
@@ -220,46 +240,17 @@ if [ $COPY_FAILED -eq 1 ]; then
    exit 1
 fi
 
-# Copy Caddyfile to /opt/
-sudo cp Caddyfile /opt/Caddyfile || {
-  echo "ERROR: Failed to copy Caddyfile to /opt/" >&2; exit 1;
-}
-
-# Copy pgvector init script to /opt/
-if [ -f "./pgvector-init.sql" ]; then # Assuming pgvector-init.sql is in the main project dir now
-  sudo cp ./pgvector-init.sql /opt/pgvector-init.sql || {
-    echo "ERROR: Failed to copy pgvector-init.sql to /opt/" >&2; exit 1;
-  }
+# Process Caddyfile template
+echo "Processing Caddyfile template..."
+if sudo sed -e "s/{DOMAIN_NAME}/$DOMAIN_NAME/g" -e "s/{USER_EMAIL}/$USER_EMAIL/g" Caddyfile.template > /opt/Caddyfile; then
+  echo "Caddyfile created in /opt/Caddyfile"
+  # Set ownership and permissions
+  sudo chown root:root /opt/Caddyfile 2>/dev/null || echo "Warning: could not set ownership for /opt/Caddyfile"
+  sudo chmod 644 /opt/Caddyfile 2>/dev/null || echo "Warning: could not set permissions for /opt/Caddyfile"
 else
-  echo "Warning: ./pgvector-init.sql not found. PostgreSQL will not initialize pgvector automatically." >&2
+  echo "ERROR: Failed to process Caddyfile.template" >&2
+  exit 1
 fi
-
-# Create Caddyfile
-echo "Creating Caddyfile..."
-cat <<EOF | sudo tee /opt/Caddyfile > /dev/null || { echo "Failed to create Caddyfile"; exit 1; }
-{
-  n8n.${DOMAIN_NAME} {
-    reverse_proxy n8n:5678
-  }
-
-  flowise.${DOMAIN_NAME} {
-    reverse_proxy flowise:3001
-  }
-
-  adminer.${DOMAIN_NAME} {
-    reverse_proxy adminer:8080
-  }
-
-  crawl4ai.${DOMAIN_NAME} {
-    reverse_proxy crawl4ai:8000
-  }
-
-  netdata.${DOMAIN_NAME} {
-    reverse_proxy netdata:19999
-  }
-}
-EOF
-echo "Created /opt/Caddyfile"
 
 echo "✅ Templates and configuration files created and copied to /opt/"
 exit 0

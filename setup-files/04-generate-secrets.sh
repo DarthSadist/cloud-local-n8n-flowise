@@ -67,10 +67,10 @@ fi
 # --- Generate Qdrant Credentials (Optional) ---
 # Qdrant can run without an API key for internal network access.
 # Generate one for optional security layer.
-QDRANT_API_KEY=$(generate_safe_password 32)
+QDRANT_API_KEY=$(openssl rand -hex 32)
 
 # Generate a random CRAWL4AI_JWT_SECRET
-CRAWL4AI_JWT_SECRET=$(generate_random_string 64)
+CRAWL4AI_JWT_SECRET=$(openssl rand -hex 32)
 
 # Writing values to .env file
 cat > .env << EOL
@@ -98,7 +98,7 @@ DOMAIN_NAME=$DOMAIN_NAME
 
 # --- Qdrant Settings (Optional) ---
 # Uncomment the following line in this file AND in qdrant-docker-compose.yaml to enable API key
-# QDRANT_API_KEY=$QDRANT_API_KEY
+QDRANT_API_KEY=$QDRANT_API_KEY
 
 # Secret for Crawl4AI API authentication
 CRAWL4AI_JWT_SECRET=$CRAWL4AI_JWT_SECRET
@@ -118,7 +118,7 @@ echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> ./setup-files/passwords.txt
 echo " " >> ./setup-files/passwords.txt
 echo "Qdrant Vector DB is running internally." >> ./setup-files/passwords.txt
 echo "  - Access from n8n/Flowise via: http://qdrant:6333" >> ./setup-files/passwords.txt
-echo "  - Optional API Key (if enabled in .env & compose): See .env file" >> ./setup-files/passwords.txt
+echo "  - Optional API Key (if enabled in .env & compose): $QDRANT_API_KEY" >> ./setup-files/passwords.txt
 echo " " >> ./setup-files/passwords.txt
 echo "Access URLs:" >> ./setup-files/passwords.txt
 echo "  n8n:      https://n8n.${DOMAIN_NAME}" >> ./setup-files/passwords.txt
@@ -135,6 +135,9 @@ echo " " >> ./setup-files/passwords.txt
 echo "Crawl4AI API JWT Secret:" >> ./setup-files/passwords.txt
 echo "  - This secret is used for API authentication." >> ./setup-files/passwords.txt
 echo "  - Stored in .env as CRAWL4AI_JWT_SECRET" >> ./setup-files/passwords.txt
+echo "Qdrant API Key:" >> ./setup-files/passwords.txt
+echo "  - This key is used for Qdrant API authentication." >> ./setup-files/passwords.txt
+echo "  - Stored in .env as QDRANT_API_KEY" >> ./setup-files/passwords.txt
 echo "=======================================================" >> ./setup-files/passwords.txt
 
 echo "✅ Secret keys and passwords successfully generated"

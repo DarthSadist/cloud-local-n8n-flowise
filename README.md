@@ -68,7 +68,7 @@
 - **n8n**: https://n8n.ваш-домен.xxx
 - **Flowise**: https://flowise.ваш-домен.xxx
 - **Adminer**: https://adminer.ваш-домен.xxx
-- **Qdrant**: Qdrant работает внутри и доступен из контейнеров n8n и Flowise по адресу `http://qdrant:6333` (HTTP) или `qdrant:6334` (gRPC). Прямой внешний доступ по умолчанию не настроен.
+- **Qdrant**: https://qdrant.ваш-домен.xxx (Веб-интерфейс Qdrant. Доступ требует API-ключа, сгенерированного при установке и сохраненного в `/opt/passwords.txt`)
 - **Crawl4AI**: https://crawl4ai.ваш-домен.xxx (доступ к API, вероятно, потребует сгенерированный `CRAWL4AI_JWT_SECRET` из `/opt/.env`)
 - **Netdata**: https://netdata.ваш-домен.xxx
 

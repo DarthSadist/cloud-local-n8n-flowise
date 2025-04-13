@@ -32,14 +32,14 @@ echo "Starting backup process at $(date)"
 echo "Target directory: $BACKUP_DIR"
 
 # --- !!! IMPORTANT: Stop containers for data consistency (Recommended) !!! ---
-# Uncomment the lines below to stop services before backup
-# echo "Stopping relevant services for consistent backup..."
-# sudo docker compose -f /opt/n8n-docker-compose.yaml down # Stops n8n, postgres, redis, caddy, adminer
-# sudo docker compose -f /opt/flowise-docker-compose.yaml down
-# sudo docker compose -f /opt/qdrant-docker-compose.yaml down
-# # Add other compose files if needed (e.g., crawl4ai)
-# echo "Services stopped."
-# sleep 5 # Give containers time to shut down gracefully
+echo "Stopping relevant services for consistent backup..."
+sudo docker compose -f /opt/n8n-docker-compose.yaml down || echo "Warning: Failed to stop n8n stack. Backup might be inconsistent."
+sudo docker compose -f /opt/flowise-docker-compose.yaml down || echo "Warning: Failed to stop Flowise stack. Backup might be inconsistent."
+sudo docker compose -f /opt/qdrant-docker-compose.yaml down || echo "Warning: Failed to stop Qdrant stack. Backup might be inconsistent."
+sudo docker compose -f /opt/crawl4ai-docker-compose.yaml down || echo "Warning: Failed to stop Crawl4AI stack (if it exists/uses volumes). Backup might be inconsistent."
+# Add other compose files if they manage volumes included in VOLUMES_TO_BACKUP
+echo "Services stopped. Waiting a few seconds..."
+sleep 10 # Give containers time to shut down gracefully
 # --- End Stop Section ---
 
 
@@ -81,13 +81,13 @@ done
 echo "-"
 
 # --- !!! IMPORTANT: Restart containers if they were stopped !!! ---
-# Uncomment the lines below to restart services after backup
-# echo "Restarting services..."
-# sudo docker compose -f /opt/n8n-docker-compose.yaml up -d
-# sudo docker compose -f /opt/flowise-docker-compose.yaml up -d
-# sudo docker compose -f /opt/qdrant-docker-compose.yaml up -d
-# # Add other compose files if needed
-# echo "Services restarting."
+echo "Restarting services..."
+sudo docker compose -f /opt/n8n-docker-compose.yaml up -d || echo "ERROR: Failed to restart n8n stack!"
+sudo docker compose -f /opt/flowise-docker-compose.yaml up -d || echo "ERROR: Failed to restart Flowise stack!"
+sudo docker compose -f /opt/qdrant-docker-compose.yaml up -d || echo "ERROR: Failed to restart Qdrant stack!"
+sudo docker compose -f /opt/crawl4ai-docker-compose.yaml up -d || echo "ERROR: Failed to restart Crawl4AI stack!"
+# Add other compose files corresponding to the 'down' commands above
+echo "Services restarting. It might take a moment for them to be fully available."
 # --- End Restart Section ---
 
 

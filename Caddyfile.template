@@ -1,0 +1,35 @@
+{
+    email {$USER_EMAIL}
+    acme_ca https://acme-v02.api.letsencrypt.org/directory
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory # Uncomment for testing
+}
+
+# n8n
+n8n.{$DOMAIN_NAME} {
+    reverse_proxy n8n:5678
+}
+
+# Flowise
+flowise.{$DOMAIN_NAME} {
+    reverse_proxy flowise:3000
+}
+
+# Adminer
+adminer.{$DOMAIN_NAME} {
+    reverse_proxy adminer:8080
+}
+
+# Qdrant UI (Protected by API Key)
+qdrant.{$DOMAIN_NAME} {
+    reverse_proxy qdrant:6333
+}
+
+# Crawl4AI
+crawl4ai.{$DOMAIN_NAME} {
+    reverse_proxy crawl4ai:8000
+}
+
+# Netdata
+netdata.{$DOMAIN_NAME} {
+    reverse_proxy netdata:19999
+}

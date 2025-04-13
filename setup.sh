@@ -67,37 +67,46 @@ main() {
   chmod +x setup-files/*.sh 2>/dev/null || true
   
   # Step 1: System update
-  show_progress "Step 1/7: System update"
+  show_progress "Step 1/8: System update"
   ./setup-files/01-update-system.sh
   check_success "system update"
   
   # Step 2: Docker installation
-  show_progress "Step 2/7: Docker installation"
+  show_progress "Step 2/8: Docker installation"
   ./setup-files/02-install-docker.sh
   check_success "Docker installation"
   
   # Step 3: Create Docker volumes
-  show_progress "Step 3/7: Create Docker volumes"
+  show_progress "Step 3/8: Create Docker volumes"
   ./setup-files/03-create-volumes.sh
   check_success "create Docker volumes"
   
   # Step 4: Directory setup
-  show_progress "Step 4/7: Directory setup"
-  ./setup-files/03-setup-directories.sh
+  show_progress "Step 4/8: Directory and User Setup"
+  if [ -f "./setup-files/03b-setup-directories.sh" ]; then
+    ./setup-files/03b-setup-directories.sh
+  elif [ -f "./setup-files/03-setup-directories.sh" ]; then
+    echo "Warning: Found old script name 03-setup-directories.sh. Consider renaming to 03b-setup-directories.sh." >&2
+    ./setup-files/03-setup-directories.sh
+  else
+    echo "Error: Directory setup script (03b-setup-directories.sh or 03-setup-directories.sh) not found." >&2
+    exit 1
+  fi
   check_success "directory setup"
   
   # Step 5: Secret key generation
-  show_progress "Step 5/7: Secret key generation"
+  show_progress "Step 5/8: Secret key generation"
   ./setup-files/04-generate-secrets.sh "$USER_EMAIL" "$DOMAIN_NAME" "$GENERIC_TIMEZONE"
   check_success "secret key generation"
   
   # Step 6: Template creation
-  show_progress "Step 6/7: Configuration file creation"
-  ./setup-files/05-create-templates.sh "$DOMAIN_NAME"
+  show_progress "Step 6/8: Configuration file creation"
+  # Pass both DOMAIN_NAME and USER_EMAIL for Caddyfile processing
+  ./setup-files/05-create-templates.sh "$DOMAIN_NAME" "$USER_EMAIL"
   check_success "configuration file creation"
   
   # Step 7: Firewall setup
-  show_progress "Step 7/7: Firewall setup"
+  show_progress "Step 7/8: Firewall setup"
   ./setup-files/06-setup-firewall.sh
   check_success "firewall setup"
   
@@ -112,16 +121,35 @@ main() {
     exit 1
   fi
   
+  # Copy pgvector initialization script to /opt
+  echo "Copying pgvector-init.sql to /opt/..."
+  if [ -f "setup-files/pgvector-init.sql" ]; then
+    sudo cp "setup-files/pgvector-init.sql" "/opt/pgvector-init.sql" || { echo "Failed to copy pgvector-init.sql to /opt"; exit 1; }
+    # Optional: Set permissions if needed, although it's just a read-only script
+    sudo chown root:root "/opt/pgvector-init.sql" 2>/dev/null || true
+    sudo chmod 644 "/opt/pgvector-init.sql" 2>/dev/null || true
+  else
+    echo "Error: setup-files/pgvector-init.sql not found. This is required for Flowise/Postgres." >&2
+    exit 1
+  fi
+  
   # Step 8: Service launch
   show_progress "Step 8/8: Service launch"
   ./setup-files/07-start-services.sh
   check_success "service launch"
   
-  # Load generated passwords
-  N8N_PASSWORD=""
-  FLOWISE_PASSWORD=""
-  if [ -f "./setup-files/passwords.txt" ]; then
-    source ./setup-files/passwords.txt
+  # Load generated passwords for final display
+  PASSWORDS_FILE="./setup-files/passwords.txt"
+  N8N_PASSWORD="<not found>"
+  FLOWISE_PASSWORD="<not found>"
+  if [ -f "$PASSWORDS_FILE" ]; then
+      N8N_PASSWORD=$(grep '^N8N_PASSWORD=' "$PASSWORDS_FILE" | cut -d'=' -f2)
+      FLOWISE_PASSWORD=$(grep '^FLOWISE_PASSWORD=' "$PASSWORDS_FILE" | cut -d'=' -f2)
+      # Provide defaults if grep fails or value is empty
+      N8N_PASSWORD=${N8N_PASSWORD:-<check /opt/.env>}
+      FLOWISE_PASSWORD=${FLOWISE_PASSWORD:-<check /opt/.env>}
+  else
+      echo "Warning: passwords.txt not found. Cannot display passwords."
   fi
   
   # Installation successfully completed
@@ -136,6 +164,7 @@ main() {
   echo "Useful commands:"
   echo "  - n8n logs:       sudo docker logs n8n"
   echo "  - Flowise logs:   sudo docker logs flowise"
+  echo "  - Caddy logs:     sudo docker logs caddy"
   echo "  - Adminer logs:   sudo docker logs adminer"
   echo "  - Crawl4AI logs:  sudo docker logs crawl4ai"
   echo "  - Qdrant logs:    sudo docker logs qdrant"
@@ -153,11 +182,11 @@ main() {
   echo ""
   echo "Login credentials for n8n:"
   echo "Email: ${USER_EMAIL}"
-  echo "Password: ${N8N_PASSWORD:-<check the .env file>}"
+  echo "Password: ${N8N_PASSWORD}"
   echo ""
   echo "Login credentials for Flowise:"
   echo "Username: admin"
-  echo "Password: ${FLOWISE_PASSWORD:-<check the .env file>}"
+  echo "Password: ${FLOWISE_PASSWORD}"
   echo ""
   echo "Please note that for the domain name to work, you need to configure DNS records"
   echo "pointing to the IP address of this server."
@@ -169,15 +198,19 @@ main() {
   echo "The temporary file setup-files/passwords.txt will be deleted now."
   
   # Removing temporary password file for security
-  if [ -f "./setup-files/passwords.txt" ]; then
-    rm ./setup-files/passwords.txt
-    echo "Temporary password file ./setup-files/passwords.txt removed."
+  if [ -f "$PASSWORDS_FILE" ]; then
+    rm "$PASSWORDS_FILE"
+    echo "Temporary password file $PASSWORDS_FILE removed."
   fi
   
   echo ""
   echo "To edit the configuration, use the following files:"
   echo "- n8n-docker-compose.yaml (n8n, Caddy, PostgreSQL, Redis configuration)"
   echo "- flowise-docker-compose.yaml (Flowise configuration)"
+  echo "- qdrant-docker-compose.yaml (Qdrant configuration)"
+  echo "- crawl4ai-docker-compose.yaml (Crawl4AI configuration)"
+  echo "- netdata-docker-compose.yaml (Netdata configuration)"
+  echo "- watchtower-docker-compose.yaml (Watchtower configuration)"
   echo "- .env (environment variables for all services)"
   echo "- Caddyfile (reverse proxy settings)"
   echo ""

@@ -18,9 +18,8 @@ services:
       - qdrant_storage:/qdrant/storage
     networks:
       - app-network
-    # Раскомментируйте и настройте, если хотите использовать API ключ:
-    # environment:
-    #   QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}
 
 volumes:
   qdrant_storage:
