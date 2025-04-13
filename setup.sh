@@ -120,8 +120,16 @@ main() {
   echo "Please note that for the domain name to work, you need to configure DNS records"
   echo "pointing to the IP address of this server."
   echo ""
+  
+  # Removing temporary password file for security
+  if [ -f "./setup-files/passwords.txt" ]; then
+    rm ./setup-files/passwords.txt
+    echo "Temporary password file ./setup-files/passwords.txt removed."
+  fi
+  
+  echo ""
   echo "To edit the configuration, use the following files:"
-  echo "- n8n-docker-compose.yaml (n8n and Caddy configuration)"
+  echo "- n8n-docker-compose.yaml (n8n, Caddy, PostgreSQL, Redis configuration)"
   echo "- flowise-docker-compose.yaml (Flowise configuration)"
   echo "- .env (environment variables for all services)"
   echo "- Caddyfile (reverse proxy settings)"
@@ -132,4 +140,4 @@ main() {
 }
 
 # Run main function
-main 
+main

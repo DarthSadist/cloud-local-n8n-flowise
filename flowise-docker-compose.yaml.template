@@ -10,10 +10,14 @@ services:
       - FLOWISE_USERNAME=${FLOWISE_USERNAME}
       - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
     volumes:
-      - /opt/flowise:/root/.flowise
+      - flowise_data:/root/.flowise
     networks:
       - app-network
 
 networks:
   app-network:
-    external: true 
+    external: true
+
+volumes:
+  flowise_data:
+    external: true

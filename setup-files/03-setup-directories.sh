@@ -1,4 +1,66 @@
-#!/bin/bash
+ {{ ... }}
+   exit 1
+ fi
+ 
++# Creating necessary base directory for Caddyfile
+ echo "Creating directories..."
+ sudo mkdir -p /opt/n8n
+ if [ $? -ne 0 ]; then
+   echo "ERROR: Failed to create directory /opt/n8n"
+   exit 1
+ fi
+ 
+ # Setting permissions
+ sudo chown n8n:n8n /opt/n8n
+ if [ $? -ne 0 ]; then
+   echo "ERROR: Failed to change owner of directory /opt/n8n"
+   exit 1
+ fi
+
+ # Creating docker volumes
+ echo "Creating Docker volumes..."
+ sudo docker volume create n8n_data
+ if [ $? -ne 0 ]; then
+   echo "ERROR: Failed to create Docker volume n8n_data"
+   exit 1
+ fi
+
+ sudo docker volume create caddy_data
+ if [ $? -ne 0 ]; then
+   echo "ERROR: Failed to create Docker volume caddy_data"
+   exit 1
+ fi
+
+ # Creating postgres_data volume
+ sudo docker volume create postgres_data
+ if [ $? -ne 0 ]; then
+   echo "ERROR: Failed to create Docker volume postgres_data"
+   exit 1
+ fi
+
+ # Creating redis_data volume
+ sudo docker volume create redis_data
+ if [ $? -ne 0 ]; then
+   echo "ERROR: Failed to create Docker volume redis_data"
+   exit 1
+ fi
+
+ # Creating n8n_user_files volume
+ sudo docker volume create n8n_user_files
+ if [ $? -ne 0 ]; then
+   echo "ERROR: Failed to create Docker volume n8n_user_files"
+   exit 1
+ fi
+
+ # Creating flowise_data volume
+ sudo docker volume create flowise_data
+ if [ $? -ne 0 ]; then
+   echo "ERROR: Failed to create Docker volume flowise_data"
+   exit 1
+ fi
+
+ echo "✅ Directories and users successfully configured"
+ exit 0 #!/bin/bash
 
 echo "Setting up directories and users..."
 
@@ -19,9 +81,7 @@ if ! id "n8n" &>/dev/null; then
     exit 1
   fi
   
-  echo "✅ Created n8n user with password: $N8N_PASSWORD"
-  echo "⚠️ IMPORTANT: Write down this password, you will need it for working with Docker!"
-  
+  echo "✅ Created n8n user"
   sudo usermod -aG docker n8n
   if [ $? -ne 0 ]; then
     echo "WARNING: Failed to add n8n user to docker group"
@@ -38,58 +98,7 @@ else
     if [ $? -ne 0 ]; then
       echo "ERROR: Failed to reset password for n8n user"
     else
-      echo "✅ Password for n8n user has been reset: $N8N_PASSWORD"
-      echo "⚠️ IMPORTANT: Write down this password, you will need it for working with Docker!"
+      echo "✅ Password for n8n user has been reset"
     fi
   fi
 fi
-
-# Creating necessary directories
-echo "Creating directories..."
-sudo mkdir -p /opt/n8n
-if [ $? -ne 0 ]; then
-  echo "ERROR: Failed to create directory /opt/n8n"
-  exit 1
-fi
-
-sudo mkdir -p /opt/n8n/files
-if [ $? -ne 0 ]; then
-  echo "ERROR: Failed to create directory /opt/n8n/files"
-  exit 1
-fi
-
-sudo mkdir -p /opt/flowise
-if [ $? -ne 0 ]; then
-  echo "ERROR: Failed to create directory /opt/flowise"
-  exit 1
-fi
-
-# Setting permissions
-sudo chown -R n8n:n8n /opt/n8n
-if [ $? -ne 0 ]; then
-  echo "ERROR: Failed to change owner of directory /opt/n8n"
-  exit 1
-fi
-
-sudo chown -R n8n:n8n /opt/flowise
-if [ $? -ne 0 ]; then
-  echo "ERROR: Failed to change owner of directory /opt/flowise"
-  exit 1
-fi
-
-# Creating docker volumes
-echo "Creating Docker volumes..."
-sudo docker volume create n8n_data
-if [ $? -ne 0 ]; then
-  echo "ERROR: Failed to create Docker volume n8n_data"
-  exit 1
-fi
-
-sudo docker volume create caddy_data
-if [ $? -ne 0 ]; then
-  echo "ERROR: Failed to create Docker volume caddy_data"
-  exit 1
-fi
-
-echo "✅ Directories and users successfully configured"
-exit 0 

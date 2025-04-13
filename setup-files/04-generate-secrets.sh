@@ -1,4 +1,4 @@
-#!/bin/bash
+ #!/bin/bash
 
 # Get variables from the main script via arguments
 USER_EMAIL=$1
@@ -55,6 +55,15 @@ if [ -z "$FLOWISE_PASSWORD" ]; then
   exit 1
 fi
 
+# PostgreSQL Credentials
+POSTGRES_DB="n8n" # Default database name
+POSTGRES_USER="n8n" # Default username
+POSTGRES_PASSWORD=$(generate_safe_password 16)
+if [ -z "$POSTGRES_PASSWORD" ]; then
+  echo "ERROR: Failed to generate password for PostgreSQL"
+  exit 1
+fi
+
 # Writing values to .env file
 cat > .env << EOL
 # Settings for n8n
@@ -71,6 +80,11 @@ GENERIC_TIMEZONE=$GENERIC_TIMEZONE
 FLOWISE_USERNAME=admin
 FLOWISE_PASSWORD=$FLOWISE_PASSWORD
 
+# Settings for PostgreSQL
+POSTGRES_DB=$POSTGRES_DB
+POSTGRES_USER=$POSTGRES_USER
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+
 # Domain settings
 DOMAIN_NAME=$DOMAIN_NAME
 EOL
@@ -81,12 +95,11 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Secret keys generated and saved to .env file"
-echo "Password for n8n: $N8N_PASSWORD"
-echo "Password for Flowise: $FLOWISE_PASSWORD"
 
 # Save passwords for future use - using quotes to properly handle special characters
 echo "N8N_PASSWORD=\"$N8N_PASSWORD\"" > ./setup-files/passwords.txt
 echo "FLOWISE_PASSWORD=\"$FLOWISE_PASSWORD\"" >> ./setup-files/passwords.txt
+echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> ./setup-files/passwords.txt
 
 echo "✅ Secret keys and passwords successfully generated"
-exit 0 
+exit 0

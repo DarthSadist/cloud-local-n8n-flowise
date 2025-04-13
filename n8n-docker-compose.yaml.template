@@ -1,4 +1,4 @@
-version: '3'
+ version: '3'
 
 volumes:
   n8n_data:
@@ -6,6 +6,12 @@ volumes:
   caddy_data:
     external: true
   caddy_config:
+  postgres_data:
+    external: true
+  redis_data:
+    external: true
+  n8n_user_files: # Volume for user files
+    external: true
 
 services:
   n8n:
@@ -21,17 +27,24 @@ services:
       - N8N_DEFAULT_USER_EMAIL=${N8N_DEFAULT_USER_EMAIL}
       - N8N_DEFAULT_USER_PASSWORD=${N8N_DEFAULT_USER_PASSWORD}
       - N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true
-      - N8N_HOST=${SUBDOMAIN}.${DOMAIN_NAME}
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=https
-      - NODE_ENV=production
-      - WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
-      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      # Database Configuration - Use PostgreSQL
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE} # Timezone
+      # Uncomment the line below if you want to use Redis for queueing
+      # - QUEUE_BULL_REDIS_HOST=redis
     volumes:
       - n8n_data:/home/node/.n8n
-      - /opt/n8n/files:/files
+      - n8n_user_files:/files # Use volume for user files
     networks:
       - app-network
+    depends_on:
+      - postgres
+      # - redis # Uncomment if using Redis
 
   caddy:
     image: caddy:2
@@ -47,7 +60,29 @@ services:
     networks:
       - app-network
 
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+
 networks:
   app-network:
     name: app-network
-    driver: bridge 
+    driver: bridge
