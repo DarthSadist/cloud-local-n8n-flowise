@@ -3,14 +3,13 @@
 volumes:
   n8n_data:
     external: true
+  n8n_redis_data: # Volume for Redis data
+    external: true
+  n8n_postgres_data:
+    external: true
   caddy_data:
     external: true
   caddy_config:
-  postgres_data:
-    external: true
-  redis_data:
-    external: true
-  n8n_user_files: # Volume for user files
     external: true
 
 services:
@@ -36,15 +35,26 @@ services:
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE} # Timezone
       # Uncomment the line below if you want to use Redis for queueing
-      # - QUEUE_BULL_REDIS_HOST=redis
+      # - QUEUE_BULL_REDIS_HOST=n8n_redis # If re-enabling Redis, use a specific service name like n8n_redis
     volumes:
       - n8n_data:/home/node/.n8n
-      - n8n_user_files:/files # Use volume for user files
+      # - /some/host/path:/files # If you need to mount host files
     networks:
       - app-network
     depends_on:
       - postgres
-      # - redis # Uncomment if using Redis
+      - n8n_redis # Ensure Redis starts before n8n
+
+  adminer:
+    image: adminer:latest # Official Adminer image
+    container_name: adminer
+    restart: unless-stopped
+    ports:
+      - "8080" # Internal port, Caddy will expose it on 443
+    networks:
+      - app-network
+    depends_on:
+      - postgres # Optional, but good practice
 
   caddy:
     image: caddy:2
@@ -54,14 +64,14 @@ services:
       - 80:80
       - 443:443
     volumes:
-      - /opt/n8n/Caddyfile:/etc/caddy/Caddyfile
+      - /opt/Caddyfile:/etc/caddy/Caddyfile # Corrected path
       - caddy_data:/data
       - caddy_config:/config
     networks:
       - app-network
 
   postgres:
-    image: postgres:15
+    image: ankane/pgvector:latest # Includes pgvector extension
     container_name: postgres
     restart: unless-stopped
     environment:
@@ -69,16 +79,17 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - n8n_postgres_data:/var/lib/postgresql/data # Corrected volume name
+      - /opt/pgvector-init.sql:/docker-entrypoint-initdb.d/pgvector-init.sql:ro # Corrected path
     networks:
       - app-network
 
-  redis:
+  n8n_redis:
     image: redis:alpine
-    container_name: redis
+    container_name: n8n_redis
     restart: unless-stopped
     volumes:
-      - redis_data:/data
+      - n8n_redis_data:/data
     networks:
       - app-network
 

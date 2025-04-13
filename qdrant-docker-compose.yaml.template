@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    restart: unless-stopped
+    ports:
+      # Порт 6333 для HTTP API, 6334 для gRPC
+      # Мы не будем публиковать их наружу через Caddy,
+      # т.к. n8n/Flowise будут обращаться к Qdrant по внутренней сети Docker.
+      # Если вам нужен прямой доступ извне (например, для отладки), раскомментируйте:
+      # - "127.0.0.1:6333:6333"
+      # - "127.0.0.1:6334:6334"
+      - "6333"
+      - "6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - app-network
+    # Раскомментируйте и настройте, если хотите использовать API ключ:
+    # environment:
+    #   QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}
+
+volumes:
+  qdrant_storage:
+    external: true
+
+networks:
+  app-network:
+    external: true
+    name: app-network

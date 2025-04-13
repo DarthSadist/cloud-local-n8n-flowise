@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  crawl4ai:
+    # Уточните имя образа, если документация рекомендует другое
+    image: crawl4ai/crawl4ai:latest 
+    container_name: crawl4ai
+    restart: unless-stopped
+    environment:
+      # Секрет для JWT-аутентификации API
+      - JWT_SECRET=${CRAWL4AI_JWT_SECRET}
+      # Другие переменные окружения могут быть добавлены здесь, если требуется
+    expose:
+      # Внутренний порт 8000, Caddy будет проксировать его
+      - "8000"
+    networks:
+      - app-network
+    # volumes:
+      # Раскомментируйте и настройте, если нужны постоянные тома
+      # - crawl4ai_data:/app/data 
+
+networks:
+  app-network:
+    external: true
+
+# volumes:
+#   crawl4ai_data:
+#     driver: local

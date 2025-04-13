@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  netdata:
+    image: netdata/netdata:latest
+    container_name: netdata
+    volumes:
+      - netdataconfig:/etc/netdata # Конфигурация Netdata
+      - netdatalib:/var/lib/netdata # Библиотеки Netdata
+      - netdatacache:/var/cache/netdata # Кэш Netdata
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro # Доступ к Docker API (read-only)
+    restart: unless-stopped
+    cap_add:
+      - SYS_PTRACE # Необходимо для некоторых метрик
+    security_opt:
+      - apparmor:unconfined # Необходимо для некоторых метрик
+    networks:
+      - app-network
+
+volumes:
+  netdataconfig:
+  netdatalib:
+  netdatacache:
+
+networks:
+  app-network:
+    external: true
+    name: app-network

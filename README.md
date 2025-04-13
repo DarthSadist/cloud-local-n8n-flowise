@@ -1,166 +1,207 @@
- {{ ... }}
-  This repository contains scripts for automatic configuration of:
- 
-  - **n8n** - a powerful open-source workflow automation platform
-+   - Configured to use **PostgreSQL** for persistent data storage.
-  - **Flowise** - a tool for creating customizable AI flows
-+ - **PostgreSQL** - a robust object-relational database system
-+ - **Redis** - an in-memory data structure store (can be used for caching, queues, etc.)
-  - **Caddy** - a modern web server with automatic HTTPS
- 
-  The system is configured to work with your domain name and automatically obtains Let's Encrypt SSL certificates.
-@@ -45,7 +48,7 @@
-  1. **System update** - updates the package list and installs necessary dependencies
-  2. **Docker installation** - installs Docker Engine and Docker Compose
-  3. **Directory setup** - creates n8n user and necessary directories
-- 4. **Secret generation** - creates random passwords and encryption keys
-+ 4. **Secret generation** - creates random passwords and encryption keys for n8n, Flowise, and PostgreSQL, stored in `.env`
-  5. **Configuration file creation** - generates docker-compose files and Caddyfile
-  6. **Firewall setup** - opens necessary ports
-  7. **Service launch** - starts Docker containers
-@@ -59,7 +62,7 @@
-  - **n8n**: [https://n8n.your-domain.xxx](https://n8n.your-domain.xxx)
-  - **Flowise**: [https://flowise.your-domain.xxx](https://flowise.your-domain.xxx)
- 
-- Login credentials will be displayed at the end of the installation process.
-+ Login credentials for n8n, Flowise, and PostgreSQL will be displayed at the end of the installation process and saved in `.env`.
- 
-  ## Project structure
- 
-@@ -72,7 +75,7 @@
-   - `05-create-templates.sh` - configuration file creation
-   - `06-setup-firewall.sh` - firewall setup
-   - `07-start-services.sh` - service launch
--- `n8n-docker-compose.yaml.template` - docker-compose template for n8n and Caddy
-+- `n8n-docker-compose.yaml.template` - docker-compose template for n8n, PostgreSQL, Redis, and Caddy
-  - `flowise-docker-compose.yaml.template` - docker-compose template for Flowise
- 
-  ## Managing services
-@@ -99,7 +102,7 @@
-  ## Security
- 
-  - All services are accessible only via HTTPS with automatically renewed Let's Encrypt certificates
--- Random passwords are created for n8n and Flowise
-+- Random passwords are created for n8n, Flowise, and the PostgreSQL database user
-  - Users are created with minimal necessary privileges
- 
-  ## Troubleshooting# Cloud-Local n8n & Flowise Setup
+ # Установка n8n, Flowise и Qdrant локально в облаке
 
-Automated installation script for n8n and Flowise with reverse proxy server Caddy for secure access via HTTPS.
+Скрипт для автоматической установки n8n, Flowise и Qdrant с обратным прокси-сервером Caddy для безопасного доступа по HTTPS.
+Также включает Adminer для удобного управления базой данных PostgreSQL и Crawl4AI для веб-скрапинга.
+Включает Watchtower для автоматического обновления контейнеров.
+Включает Netdata для мониторинга производительности в реальном времени.
 
-## Description
+## Описание
 
-This repository contains scripts for automatic configuration of:
+Этот репозиторий содержит скрипты для автоматической настройки:
 
-- **n8n** - a powerful open-source workflow automation platform
-  - Configured to use **PostgreSQL** for persistent data storage.
-- **Flowise** - a tool for creating customizable AI flows
-- **PostgreSQL** - a robust object-relational database system
-- **Redis** - an in-memory data structure store (can be used for caching, queues, etc.)
-- **Caddy** - a modern web server with automatic HTTPS
+- **n8n** - мощная платформа автоматизации рабочих процессов с открытым исходным кодом.
+  - Настроена для использования **PostgreSQL** для постоянного хранения данных.
+- **Flowise** - инструмент для создания настраиваемых AI-потоков.
+- **Qdrant** - векторная база данных для эффективного поиска по сходству и AI-приложений.
+- **Adminer** - легковесный инструмент управления базами данных (для PostgreSQL).
+- **Crawl4AI** - веб-краулер, разработанный для сбора данных для AI.
+- **PostgreSQL** - надежная объектно-реляционная система баз данных.
+  - Включает расширение **pgvector** для хранения векторных эмбеддингов и поиска по сходству.
+- **Redis** - хранилище структур данных в памяти (может использоваться для кеширования, очередей и т.д.).
+- **Caddy** - современный веб-сервер с автоматическим HTTPS.
+- **Watchtower** - автоматически обновляет запущенные Docker-контейнеры до последней версии образа.
+- **Netdata** - система мониторинга производительности систем и приложений в реальном времени.
 
-The system is configured to work with your domain name and automatically obtains Let's Encrypt SSL certificates.
+## Требования
 
-## Requirements
+- Ubuntu 22.04
+- Доменное имя, указывающее на IP-адрес вашего сервера
+- Доступ к серверу с правами администратора (sudo)
+- Открытые порты 80, 443
 
-- Ubuntu 22.04 
-- Domain name pointing to your server's IP address
-- Server access with administrator rights (sudo)
-- Open ports 80, 443 
+## Установка
 
-## Installation
+1.  Клонируйте репозиторий:
+    ```bash
+    git clone https://github.com/miolamio/cloud-local-n8n-flowise.git && cd cloud-local-n8n-flowise
+    ```
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/miolamio/cloud-local-n8n-flowise.git && cd cloud-local-n8n-flowise
-   ```
+2.  Сделайте скрипт исполняемым:
+    ```bash
+    chmod +x setup.sh
+    ```
 
-2. Make the script executable:
-   ```bash
-   chmod +x setup.sh
-   ```
+3.  Запустите скрипт установки:
+    ```bash
+    ./setup.sh
+    ```
 
-3. Run the installation script:
-   ```bash
-   ./setup.sh
-   ```
+4.  Следуйте инструкциям в терминале:
+    - Введите ваше доменное имя (например, example.com)
+    - Введите ваш email (будет использоваться для входа в n8n и для Let's Encrypt)
 
-4. Follow the instructions in the terminal:
-   - Enter your domain name (e.g., example.com)
-   - Enter your email (will be used for n8n login and Let's Encrypt)
+## Что делает скрипт установки
 
-## What the installation script does
+1.  **Обновление системы** (`01-update-system.sh`) - обновляет список пакетов и устанавливает необходимые зависимости.
+2.  **Установка Docker** (`02-install-docker.sh`) - устанавливает Docker Engine и Docker Compose.
+3.  **Создание Docker Volumes** (`03-create-volumes.sh`) - создает необходимые внешние Docker-тома.
+4.  **Настройка директорий** (`04-setup-directories.sh`) - создает пользователя n8n и необходимые директории.
+5.  **Генерация секретов** (`05-generate-secrets.sh`) - создает случайные пароли и ключи шифрования для n8n, Flowise, PostgreSQL и сохраняет их в `/opt/.env`.
+6.  **Создание конфигурационных файлов** (`06-create-templates.sh`) - генерирует файлы docker-compose и Caddyfile из шаблонов и копирует их в `/opt/`.
+7.  **Настройка брандмауэра** (`07-setup-firewall.sh`) - открывает необходимые порты (80, 443).
+8.  **Запуск сервисов** (`08-start-services.sh`) - запускает все Docker-контейнеры, используя конфигурации из `/opt/`.
 
-1. **System update** - updates the package list and installs necessary dependencies
-2. **Docker installation** - installs Docker Engine and Docker Compose
-3. **Directory setup** - creates n8n user and necessary directories
-4. **Secret generation** - creates random passwords and encryption keys for n8n, Flowise, and PostgreSQL, stored in `.env`
-5. **Configuration file creation** - generates docker-compose files and Caddyfile
-6. **Firewall setup** - opens necessary ports
-7. **Service launch** - starts Docker containers
+## Доступ к сервисам
 
-## Accessing services
+После завершения установки вы сможете получить доступ к сервисам по следующим URL:
 
-After installation completes, you will be able to access services at the following URLs:
+- **n8n**: https://n8n.ваш-домен.xxx
+- **Flowise**: https://flowise.ваш-домен.xxx
+- **Adminer**: https://adminer.ваш-домен.xxx
+- **Qdrant**: Qdrant работает внутри и доступен из контейнеров n8n и Flowise по адресу `http://qdrant:6333` (HTTP) или `qdrant:6334` (gRPC). Прямой внешний доступ по умолчанию не настроен.
+- **Crawl4AI**: https://crawl4ai.ваш-домен.xxx (доступ к API, вероятно, потребует сгенерированный `CRAWL4AI_JWT_SECRET` из `/opt/.env`)
+- **Netdata**: https://netdata.ваш-домен.xxx
 
-- **n8n**: https://n8n.your-domain.xxx
-- **Flowise**: https://flowise.your-domain.xxx
+Watchtower работает в фоновом режиме и не имеет веб-интерфейса.
 
-Login credentials for n8n, Flowise, and PostgreSQL will be displayed at the end of the installation process and saved in `.env`.
+Учетные данные для входа в n8n, Flowise, PostgreSQL будут отображены в конце процесса установки и сохранены в `/opt/.env`.
 
-## Project structure
+**Подключение к PostgreSQL через Adminer:**
+*   Перейдите по адресу `https://adminer.ваш-домен.xxx`.
+*   Система (System): `PostgreSQL`
+*   Сервер (Server): `n8n_postgres` (Это имя сервиса в сети Docker)
+*   Имя пользователя (Username): (Используйте `POSTGRES_USER` из вывода установки или `/opt/.env`)
+*   Пароль (Password): (Используйте `POSTGRES_PASSWORD` из вывода установки или `/opt/.env`)
+*   База данных (Database): (Используйте `POSTGRES_DB` из вывода установки или `/opt/.env`)
 
-- `setup.sh` - main installation script
-- `setup-files/` - directory with helper scripts:
-  - `01-update-system.sh` - system update
-  - `02-install-docker.sh` - Docker installation
-  - `03-setup-directories.sh` - directory and user setup
-  - `04-generate-secrets.sh` - secret key generation
-  - `05-create-templates.sh` - configuration file creation
-  - `06-setup-firewall.sh` - firewall setup
-  - `07-start-services.sh` - service launch
-- `n8n-docker-compose.yaml.template` - docker-compose template for n8n, PostgreSQL, Redis, and Caddy
-- `flowise-docker-compose.yaml.template` - docker-compose template for Flowise
+**Доступ к Crawl4AI API:**
+*   Сервис Crawl4AI доступен по адресу `https://crawl4ai.ваш-домен.xxx`.
+*   Запросы к API, скорее всего, потребуют токен аутентификации (Bearer Token), использующий `CRAWL4AI_JWT_SECRET`, найденный в `/opt/.env`.
 
-## Managing services
+## Структура проекта
 
-### Restarting services
+- `setup.sh` - основной скрипт установки
+- `setup-files/` - директория со вспомогательными скриптами:
+  - `01-update-system.sh` - обновление системы
+  - `02-install-docker.sh` - установка Docker
+  - `03-create-volumes.sh` - создание Docker-томов
+  - `04-setup-directories.sh` - настройка директорий и пользователя
+  - `05-generate-secrets.sh` - генерация секретных ключей
+  - `06-create-templates.sh` - создание конфигурационных файлов из шаблонов
+  - `07-setup-firewall.sh` - настройка брандмауэра
+  - `08-start-services.sh` - запуск сервисов
+  - `10-backup-data.sh` - скрипт для создания резервных копий важных Docker-томов
+- `n8n-docker-compose.yaml.template` - шаблон docker-compose для n8n, PostgreSQL, Redis, Caddy и Adminer
+- `flowise-docker-compose.yaml.template` - шаблон docker-compose для Flowise
+- `qdrant-docker-compose.yaml.template` - шаблон docker-compose для Qdrant
+- `crawl4ai-docker-compose.yaml.template` - шаблон docker-compose для Crawl4AI
+- `watchtower-docker-compose.yaml.template` - шаблон docker-compose для Watchtower
+- `netdata-docker-compose.yaml.template` - шаблон docker-compose для Netdata
+- `Caddyfile.template` - шаблон конфигурации для Caddy
+- `.env.template` - шаблон файла переменных окружения
+- `pgvector-init.sql` - скрипт инициализации расширения pgvector для PostgreSQL
+
+## Управление сервисами
+
+Команды следует выполнять из любой директории, так как они используют абсолютные пути к файлам конфигурации в `/opt/`.
+
+### Перезапуск сервисов
 
 ```bash
-docker compose -f n8n-docker-compose.yaml restart
-docker compose -f flowise-docker-compose.yaml restart
+sudo docker compose -f /opt/n8n-docker-compose.yaml --env-file /opt/.env restart
+sudo docker compose -f /opt/flowise-docker-compose.yaml --env-file /opt/.env restart
+sudo docker compose -f /opt/qdrant-docker-compose.yaml --env-file /opt/.env restart
+sudo docker compose -f /opt/crawl4ai-docker-compose.yaml --env-file /opt/.env restart
+sudo docker compose -f /opt/watchtower-docker-compose.yaml restart # .env не нужен
+sudo docker compose -f /opt/netdata-docker-compose.yaml --env-file /opt/.env restart # .env может понадобиться для имени хоста
 ```
 
-### Stopping services
+### Остановка сервисов
 
 ```bash
-docker compose -f n8n-docker-compose.yaml down
-docker compose -f flowise-docker-compose.yaml down
+sudo docker compose -f /opt/n8n-docker-compose.yaml --env-file /opt/.env down
+sudo docker compose -f /opt/flowise-docker-compose.yaml --env-file /opt/.env down
+sudo docker compose -f /opt/qdrant-docker-compose.yaml --env-file /opt/.env down
+sudo docker compose -f /opt/crawl4ai-docker-compose.yaml --env-file /opt/.env down
+sudo docker compose -f /opt/watchtower-docker-compose.yaml down
+sudo docker compose -f /opt/netdata-docker-compose.yaml --env-file /opt/.env down
 ```
 
-### Viewing logs
+### Просмотр логов
 
 ```bash
-docker compose -f n8n-docker-compose.yaml logs
-docker compose -f flowise-docker-compose.yaml logs
+sudo docker compose -f /opt/n8n-docker-compose.yaml --env-file /opt/.env logs -f --tail 100
+sudo docker compose -f /opt/flowise-docker-compose.yaml --env-file /opt/.env logs -f --tail 100
+sudo docker compose -f /opt/qdrant-docker-compose.yaml --env-file /opt/.env logs -f --tail 100
+sudo docker compose -f /opt/crawl4ai-docker-compose.yaml --env-file /opt/.env logs -f --tail 100
+sudo docker compose -f /opt/watchtower-docker-compose.yaml logs -f --tail 100
+sudo docker compose -f /opt/netdata-docker-compose.yaml --env-file /opt/.env logs -f --tail 100
 ```
 
-## Security
+## Резервное копирование и восстановление
 
-- All services are accessible only via HTTPS with automatically renewed Let's Encrypt certificates
-- Random passwords are created for n8n, Flowise, and the PostgreSQL database user
-- Users are created with minimal necessary privileges
+Включен базовый скрипт резервного копирования для защиты ваших данных.
 
-## Troubleshooting
+**Создание резервных копий:**
 
-- Check your domain's DNS records to ensure they point to the correct IP address
-- Verify that ports 80 and 443 are open on your server
-- View container logs to detect errors
+1.  Перейдите в директорию проекта: `cd /путь/к/cloud-local-n8n-flowise`
+2.  Запустите скрипт резервного копирования: `sudo ./setup-files/10-backup-data.sh`
 
-## License
+Этот скрипт:
+*   Создаст резервные копии следующих Docker-томов: `n8n_data`, `n8n_postgres_data`, `n8n_redis_data`, `flowise_data`, `qdrant_storage`, `caddy_data`, `caddy_config`.
+*   Сохранит резервные копии в виде файлов `.tar.gz` с временной меткой в `/opt/backups/`.
+*   Автоматически удалит резервные копии старше 7 дней (настраивается в скрипте).
 
-This project is distributed under the MIT License.
+**Важно:**
+*   **Консистентность данных:** Для критически важных баз данных, таких как PostgreSQL и Qdrant, настоятельно рекомендуется **останавливать соответствующие сервисы** перед запуском резервного копирования для обеспечения консистентности данных. Скрипт содержит закомментированные команды `docker compose down` и `up` для этой цели. Раскомментируйте их, если вам нужна гарантированная консистентность.
+*   **Место на диске:** Убедитесь, что у вас достаточно места на диске в `/opt/backups/`.
+*   **Внешние резервные копии:** Регулярно копируйте содержимое `/opt/backups/` в отдельное, безопасное место (например, на другой сервер, в облачное хранилище).
 
-## Author
+**Восстановление из резервных копий (Ручной процесс):**
 
-@codegeek
+Восстановление требует ручного извлечения файла `.tar.gz` в соответствующий Docker-том. Этот процесс более сложен и зависит от конкретного сервиса.
+
+1.  **Остановите** сервис, данные которого вы хотите восстановить (например, `sudo docker compose -f /opt/n8n-docker-compose.yaml stop n8n_postgres`).
+2.  Определите правильное имя Docker-тома (например, `n8n_postgres_data`).
+3.  При необходимости, **переименуйте или удалите** существующий том, если вы хотите выполнить чистое восстановление: `sudo docker volume rm n8n_postgres_data` (**Используйте с крайней осторожностью!**).
+4.  Создайте том заново, если он был удален: `sudo docker volume create n8n_postgres_data`.
+5.  Используйте временный контейнер для извлечения архива резервной копии в том:
+    ```bash
+    sudo docker run --rm \
+        -v n8n_postgres_data:/pgdata \
+        -v /opt/backups:/backup \
+        alpine \
+        tar xzf /backup/postgres_YYYYMMDD_HHMMSS.tar.gz -C /pgdata
+    ```
+    (Замените имена томов, пути и имена архивов соответствующим образом).
+*Примечание: Восстановление томов Caddy (`caddy_data`, `caddy_config`) в идеале следует выполнять при остановленном Caddy. Эти тома содержат SSL-сертификаты и состояние конфигурации.*
+6.  При необходимости проверьте права доступа/владельца внутри тома (особенно для PostgreSQL).
+7.  **Перезапустите** сервис.
+
+## Безопасность
+
+- Все сервисы доступны только по HTTPS с автоматически обновляемыми сертификатами Let's Encrypt.
+- Для n8n, Flowise, PostgreSQL создаются случайные пароли.
+- Пользователи создаются с минимально необходимыми привилегиями.
+- Adminer предоставляет веб-интерфейс для управления базой данных n8n PostgreSQL.
+- Безопасный доступ к API Crawl4AI с использованием сгенерированного `CRAWL4AI_JWT_SECRET` в качестве Bearer-токена в ваших запросах.
+- **Автоматические обновления:** Watchtower отслеживает Docker Hub и автоматически обновляет контейнеры (n8n, Flowise и т.д.) при появлении новых официальных образов (проверка по умолчанию ежедневно в 4 утра). Это помогает поддерживать ваши сервисы в актуальном состоянии с исправлениями безопасности и новыми функциями.
+- **Мониторинг производительности:** Netdata предоставляет панель мониторинга в реальном времени, доступную через веб-браузер, показывающую подробные метрики для CPU, RAM, дискового ввода-вывода, сетевого трафика, Docker-контейнеров и многого другого.
+
+## Устранение неполадок
+
+- Проверьте DNS-записи вашего домена, чтобы убедиться, что они указывают на правильный IP-адрес.
+- Убедитесь, что порты 80 и 443 открыты на вашем сервере.
+- Просмотрите логи контейнеров для обнаружения ошибок.
+- Убедитесь, что n8n/Flowise настроены для подключения к `http://qdrant:6333`. Если вы включили API-ключ Qdrant, убедитесь, что он указан в настройках подключения в n8n/Flowise.
+- При подключении через Adminer убедитесь, что вы используете *имя сервиса Docker* (`n8n_postgres`) в качестве сервера/хоста, а не `localhost` или IP-адрес.

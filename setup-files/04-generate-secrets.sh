@@ -64,6 +64,14 @@ if [ -z "$POSTGRES_PASSWORD" ]; then
   exit 1
 fi
 
+# --- Generate Qdrant Credentials (Optional) ---
+# Qdrant can run without an API key for internal network access.
+# Generate one for optional security layer.
+QDRANT_API_KEY=$(generate_safe_password 32)
+
+# Generate a random CRAWL4AI_JWT_SECRET
+CRAWL4AI_JWT_SECRET=$(generate_random_string 64)
+
 # Writing values to .env file
 cat > .env << EOL
 # Settings for n8n
@@ -87,6 +95,13 @@ POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 
 # Domain settings
 DOMAIN_NAME=$DOMAIN_NAME
+
+# --- Qdrant Settings (Optional) ---
+# Uncomment the following line in this file AND in qdrant-docker-compose.yaml to enable API key
+# QDRANT_API_KEY=$QDRANT_API_KEY
+
+# Secret for Crawl4AI API authentication
+CRAWL4AI_JWT_SECRET=$CRAWL4AI_JWT_SECRET
 EOL
 
 if [ $? -ne 0 ]; then
@@ -100,6 +115,27 @@ echo "Secret keys generated and saved to .env file"
 echo "N8N_PASSWORD=\"$N8N_PASSWORD\"" > ./setup-files/passwords.txt
 echo "FLOWISE_PASSWORD=\"$FLOWISE_PASSWORD\"" >> ./setup-files/passwords.txt
 echo "POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\"" >> ./setup-files/passwords.txt
+echo " " >> ./setup-files/passwords.txt
+echo "Qdrant Vector DB is running internally." >> ./setup-files/passwords.txt
+echo "  - Access from n8n/Flowise via: http://qdrant:6333" >> ./setup-files/passwords.txt
+echo "  - Optional API Key (if enabled in .env & compose): See .env file" >> ./setup-files/passwords.txt
+echo " " >> ./setup-files/passwords.txt
+echo "Access URLs:" >> ./setup-files/passwords.txt
+echo "  n8n:      https://n8n.${DOMAIN_NAME}" >> ./setup-files/passwords.txt
+echo "  Flowise:  https://flowise.${DOMAIN_NAME}" >> ./setup-files/passwords.txt
+echo "  Adminer:  https://adminer.${DOMAIN_NAME}" >> ./setup-files/passwords.txt
+echo " " >> ./setup-files/passwords.txt
+echo "Adminer Connection Details (for n8n DB):" >> ./setup-files/passwords.txt
+echo "  System:   PostgreSQL" >> ./setup-files/passwords.txt
+echo "  Server:   n8n_postgres (this is the Docker service name)" >> ./setup-files/passwords.txt
+echo "  Username: ${POSTGRES_USER}" >> ./setup-files/passwords.txt
+echo "  Password: ${POSTGRES_PASSWORD}" >> ./setup-files/passwords.txt
+echo "  Database: ${POSTGRES_DB}" >> ./setup-files/passwords.txt
+echo " " >> ./setup-files/passwords.txt
+echo "Crawl4AI API JWT Secret:" >> ./setup-files/passwords.txt
+echo "  - This secret is used for API authentication." >> ./setup-files/passwords.txt
+echo "  - Stored in .env as CRAWL4AI_JWT_SECRET" >> ./setup-files/passwords.txt
+echo "=======================================================" >> ./setup-files/passwords.txt
 
 echo "✅ Secret keys and passwords successfully generated"
 exit 0

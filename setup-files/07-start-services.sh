@@ -2,29 +2,57 @@
 
 echo "Starting services..."
 
-# Check for required files
-if [ ! -f "n8n-docker-compose.yaml" ]; then
-  echo "ERROR: File n8n-docker-compose.yaml not found"
-  exit 1
+# Check if Docker is running
+if ! sudo docker info > /dev/null 2>&1; then
+    echo "Error: Docker daemon is not running." >&2
+    exit 1
 fi
 
-if [ ! -f "flowise-docker-compose.yaml" ]; then
-  echo "ERROR: File flowise-docker-compose.yaml not found"
-  exit 1
+# Define compose file paths
+N8N_COMPOSE_FILE="/opt/n8n-docker-compose.yaml"
+FLOWISE_COMPOSE_FILE="/opt/flowise-docker-compose.yaml"
+QDRANT_COMPOSE_FILE="/opt/qdrant-docker-compose.yaml"
+CRAWL4AI_COMPOSE_FILE="/opt/crawl4ai-docker-compose.yaml"
+WATCHTOWER_COMPOSE_FILE="/opt/watchtower-docker-compose.yaml"
+NETDATA_COMPOSE_FILE="/opt/netdata-docker-compose.yaml"
+ENV_FILE="/opt/.env" # Assuming .env is copied to /opt
+
+# Check if compose files exist
+if [ ! -f "$N8N_COMPOSE_FILE" ]; then
+    echo "Error: $N8N_COMPOSE_FILE not found." >&2
+    exit 1
+fi
+if [ ! -f "$FLOWISE_COMPOSE_FILE" ]; then
+    echo "Error: $FLOWISE_COMPOSE_FILE not found." >&2
+    exit 1
+fi
+if [ ! -f "$QDRANT_COMPOSE_FILE" ]; then
+    echo "Error: $QDRANT_COMPOSE_FILE not found." >&2
+    exit 1
+fi
+if [ ! -f "$CRAWL4AI_COMPOSE_FILE" ]; then
+    echo "Error: $CRAWL4AI_COMPOSE_FILE not found." >&2
+    exit 1
+fi
+if [ ! -f "$WATCHTOWER_COMPOSE_FILE" ]; then
+    echo "Error: $WATCHTOWER_COMPOSE_FILE not found." >&2
+    exit 1
+fi
+if [ ! -f "$NETDATA_COMPOSE_FILE" ]; then
+    echo "Error: $NETDATA_COMPOSE_FILE not found." >&2
+    exit 1
+fi
+if [ ! -f "$ENV_FILE" ]; then
+    echo "Error: $ENV_FILE not found." >&2
+    exit 1
 fi
 
-if [ ! -f ".env" ]; then
-  echo "ERROR: File .env not found"
-  exit 1
-fi
+echo "Starting n8n, Flowise, Qdrant, Adminer, Crawl4AI, Watchtower, Netdata, Caddy, and services via Docker Compose..."
 
-# Start n8n and Caddy
-echo "Starting n8n and Caddy..."
-sudo docker compose -f n8n-docker-compose.yaml up -d
-if [ $? -ne 0 ]; then
-  echo "ERROR: Failed to start n8n and Caddy"
-  exit 1
-fi
+# Start n8n, Caddy, PostgreSQL, Redis stack
+# Using --env-file ensures variables are loaded correctly
+echo "Starting n8n stack (includes Caddy, Postgres, Redis)..."
+sudo docker compose -f "$N8N_COMPOSE_FILE" --env-file "$ENV_FILE" up -d || { echo "Failed to start n8n stack"; exit 1; }
 
 # Wait a bit for the network to be created
 echo "Waiting for docker network creation..."
@@ -36,12 +64,45 @@ if ! sudo docker network inspect app-network &> /dev/null; then
   exit 1
 fi
 
-# Start Flowise
-echo "Starting Flowise..."
-sudo docker compose -f flowise-docker-compose.yaml up -d
-if [ $? -ne 0 ]; then
-  echo "ERROR: Failed to start Flowise"
-  exit 1
+# Start Flowise stack
+echo "Starting Flowise stack..."
+sudo docker compose -f "$FLOWISE_COMPOSE_FILE" --env-file "$ENV_FILE" up -d || { echo "Failed to start Flowise stack"; exit 1; }
+
+# Start Qdrant stack
+echo "Starting Qdrant stack..."
+sudo docker compose -f "$QDRANT_COMPOSE_FILE" --env-file "$ENV_FILE" up -d || { echo "Failed to start Qdrant stack"; exit 1; }
+
+# Start Crawl4AI stack
+echo "Starting Crawl4AI stack..."
+sudo docker compose -f "$CRAWL4AI_COMPOSE_FILE" --env-file "$ENV_FILE" up -d || { echo "Failed to start Crawl4AI stack"; exit 1; }
+
+# Start Watchtower stack (no env file needed)
+echo "Starting Watchtower stack..."
+sudo docker compose -f "$WATCHTOWER_COMPOSE_FILE" up -d || { echo "Failed to start Watchtower stack"; exit 1; }
+
+# Start Netdata stack
+echo "Starting Netdata stack..."
+# Using --env-file because hostname uses DOMAIN_NAME
+sudo docker compose -f "$NETDATA_COMPOSE_FILE" --env-file "$ENV_FILE" up -d || { echo "Failed to start Netdata stack"; exit 1; }
+
+# Wait a few seconds for services to initialize
+echo "Waiting for services to initialize..."
+sleep 15
+
+# Check status
+echo "Checking status of Docker containers..."
+sudo docker compose -f "$N8N_COMPOSE_FILE" --env-file "$ENV_FILE" ps
+sudo docker compose -f "$FLOWISE_COMPOSE_FILE" --env-file "$ENV_FILE" ps
+sudo docker compose -f "$QDRANT_COMPOSE_FILE" --env-file "$ENV_FILE" ps
+sudo docker compose -f "$CRAWL4AI_COMPOSE_FILE" --env-file "$ENV_FILE" ps
+sudo docker compose -f "$WATCHTOWER_COMPOSE_FILE" ps
+sudo docker compose -f "$NETDATA_COMPOSE_FILE" --env-file "$ENV_FILE" ps
+
+# Basic check if Caddy is running (port 80/443 should be listened by Docker proxy)
+if ! sudo ss -tulnp | grep -q 'docker-proxy.*:80' || ! sudo ss -tulnp | grep -q 'docker-proxy.*:443'; then
+    echo "ERROR: Caddy reverse proxy does not seem to be listening on ports 80 or 443." >&2
+else
+    echo "Caddy appears to be running."
 fi
 
 # Check that all containers are running
@@ -63,5 +124,36 @@ if ! sudo docker ps | grep -q "flowise"; then
   exit 1
 fi
 
-echo "✅ Services n8n, Flowise and Caddy successfully started"
-exit 0 
+if ! sudo docker ps | grep -q "qdrant"; then
+  echo "ERROR: Container qdrant is not running"
+  exit 1
+fi
+
+if ! sudo docker ps | grep -q "adminer"; then
+  echo "ERROR: Container adminer is not running" >&2
+  # Decide if this is critical enough to exit
+  # exit 1
+fi
+
+if ! sudo docker ps | grep -q "crawl4ai"; then
+  echo "ERROR: Container crawl4ai is not running" >&2
+  # Decide if this is critical enough to exit
+  # exit 1
+fi
+
+if ! sudo docker ps | grep -q "watchtower"; then
+  echo "ERROR: Container watchtower is not running" >&2
+  # Decide if this is critical enough to exit
+  # exit 1
+fi
+
+if ! sudo docker ps | grep -q "netdata"; then
+  echo "ERROR: Container netdata is not running" >&2
+  # Decide if this is critical enough to exit
+  # exit 1
+fi
+
+echo "✅ Services n8n, Flowise, Qdrant, Adminer, Crawl4AI, Watchtower, Netdata, Caddy successfully started"
+echo "Services started. Check the output above for status."
+echo "It might take a few minutes for all services to become fully available."
+exit 0

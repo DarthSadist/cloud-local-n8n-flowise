@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Запускать проверку каждый день в 4:00 утра по времени хоста
+    # Можно изменить или убрать для проверки каждые 5 минут
+    command: --schedule "0 0 4 * * *" --cleanup
+    restart: always
+    # Можно добавить label для управления только определенными контейнерами, если нужно
+    # labels:
+    #   - "com.centurylinklabs.watchtower.enable=true"
+
+# Watchtower не требует своей сети, он работает с Docker API хоста

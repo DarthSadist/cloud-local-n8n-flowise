@@ -19,45 +19,13 @@
 
  # Creating docker volumes
  echo "Creating Docker volumes..."
- sudo docker volume create n8n_data
- if [ $? -ne 0 ]; then
-   echo "ERROR: Failed to create Docker volume n8n_data"
-   exit 1
- fi
-
- sudo docker volume create caddy_data
- if [ $? -ne 0 ]; then
-   echo "ERROR: Failed to create Docker volume caddy_data"
-   exit 1
- fi
-
- # Creating postgres_data volume
- sudo docker volume create postgres_data
- if [ $? -ne 0 ]; then
-   echo "ERROR: Failed to create Docker volume postgres_data"
-   exit 1
- fi
-
- # Creating redis_data volume
- sudo docker volume create redis_data
- if [ $? -ne 0 ]; then
-   echo "ERROR: Failed to create Docker volume redis_data"
-   exit 1
- fi
-
- # Creating n8n_user_files volume
- sudo docker volume create n8n_user_files
- if [ $? -ne 0 ]; then
-   echo "ERROR: Failed to create Docker volume n8n_user_files"
-   exit 1
- fi
-
- # Creating flowise_data volume
- sudo docker volume create flowise_data
- if [ $? -ne 0 ]; then
-   echo "ERROR: Failed to create Docker volume flowise_data"
-   exit 1
- fi
+ sudo docker volume create n8n_data || { echo "Failed to create n8n_data volume"; exit 1; }
+ sudo docker volume create caddy_data || { echo "Failed to create caddy_data volume"; exit 1; }
+ sudo docker volume create postgres_data || { echo "Failed to create postgres_data volume"; exit 1; }
+ sudo docker volume create redis_data || { echo "Failed to create redis_data volume"; exit 1; }
+ sudo docker volume create n8n_user_files || { echo "Failed to create n8n_user_files volume"; exit 1; }
+ sudo docker volume create flowise_data || { echo "Failed to create flowise_data volume"; exit 1; }
+ sudo docker volume create qdrant_data || { echo "Failed to create qdrant_data volume"; exit 1; }
 
  echo "✅ Directories and users successfully configured"
  exit 0 #!/bin/bash
