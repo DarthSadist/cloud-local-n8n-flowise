@@ -112,12 +112,12 @@ main() {
   
   # Copy .env file to /opt for service startup
   echo "Copying .env file to /opt/..."
-  if [ -f "setup-files/.env" ]; then
-    sudo cp "setup-files/.env" "/opt/.env" || { echo "Failed to copy .env to /opt"; exit 1; }
+  if [ -f ".env" ]; then 
+    sudo cp ".env" "/opt/.env" || { echo "Failed to copy .env to /opt"; exit 1; } 
     sudo chown root:root "/opt/.env" || echo "Warning: Failed to set root ownership for /opt/.env"
     sudo chmod 600 "/opt/.env" || echo "Warning: Failed to set permissions for /opt/.env"
   else
-    echo "Error: setup-files/.env not found. Cannot copy to /opt/.env." >&2
+    echo "Error: .env not found in project root. Cannot copy to /opt/.env." >&2 
     exit 1
   fi
   
