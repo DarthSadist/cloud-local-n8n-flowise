@@ -21,29 +21,29 @@ check_docker_image() {
 show_container_logs() {
     local container=$1
     local lines=${2:-10}
-    echo "\n📝 Последние логи контейнера $container:"
+    echo -e "\n📝 Последние логи контейнера $container:"
     sudo docker logs $container --tail $lines 2>/dev/null || echo "Логи недоступны"
 }
 
 # Функция диагностики
 diagnostic_info() {
-    echo "\n==== 🔍 ДИАГНОСТИЧЕСКАЯ ИНФОРМАЦИЯ ===="
-    echo "\n1. Список запущенных контейнеров:"
+    echo -e "\n==== 🔍 ДИАГНОСТИЧЕСКАЯ ИНФОРМАЦИЯ ====" 
+    echo -e "\n1. Список запущенных контейнеров:"
     sudo docker ps
     
-    echo "\n2. Список всех контейнеров (включая остановленные):"
+    echo -e "\n2. Список всех контейнеров (включая остановленные):"
     sudo docker ps -a
     
-    echo "\n3. Сетевые интерфейсы Docker:"
+    echo -e "\n3. Сетевые интерфейсы Docker:"
     sudo docker network ls
     
-    echo "\n4. Том qdrant_storage:"
+    echo -e "\n4. Том qdrant_storage:"
     sudo docker volume inspect qdrant_storage 2>/dev/null || echo "Том qdrant_storage не найден"
     
-    echo "\n5. Переменные окружения в .env файле:"
+    echo -e "\n5. Переменные окружения в .env файле:"
     grep -E "QDRANT_API_KEY|CRAWL4AI_JWT_SECRET" $ENV_FILE 2>/dev/null || echo "Переменные не найдены в $ENV_FILE"
     
-    echo "\n6. Проверка доступности образов Docker:"
+    echo -e "\n6. Проверка доступности образов Docker:"
     check_docker_image "n8nio/n8n:latest"
     check_docker_image "flowiseai/flowise:latest"
     check_docker_image "qdrant/qdrant:latest"
@@ -108,9 +108,16 @@ start_service() {
   local max_retries=2
   local retry_count=0
 
-  echo "\n======================"
+  echo -e "\n======================"
   echo "⚡ Запуск $service_name..."
-  echo "======================\n"
+  echo -e "======================\n"
+  
+  # Проверка валидности Docker Compose файла
+  check_compose_file "$compose_file"
+  if [ $? -ne 0 ]; then
+    echo -e "\n❌ Критическая ошибка: $compose_file содержит ошибки, проверьте синтаксис YAML."
+    return 1
+  fi
   
   # Команда для запуска сервиса
   local start_cmd="sudo docker compose -f $compose_file"
@@ -147,10 +154,45 @@ start_service() {
   done
 }
 
+# Функция для проверки валидности Docker Compose файла
+check_compose_file() {
+  local compose_file=$1
+  echo "Проверка валидности $compose_file..."
+  if sudo docker compose -f "$compose_file" config > /dev/null 2>&1; then
+    echo "✅ $compose_file валиден"
+    return 0
+  else
+    echo "❌ ОШИБКА: $compose_file содержит ошибки"
+    return 1
+  fi
+}
+
+# Функция для проверки и создания сети Docker
+ensure_docker_network() {
+  local network_name=$1
+  if ! sudo docker network inspect "$network_name" &> /dev/null; then
+    echo -e "\n❗ Сеть $network_name не существует, создаем..."
+    sudo docker network create "$network_name"
+    if [ $? -eq 0 ]; then
+      echo "✅ Сеть $network_name успешно создана"
+      return 0
+    else
+      echo "❌ Ошибка при создании сети $network_name"
+      return 1
+    fi
+  else
+    echo "✅ Сеть $network_name уже существует"
+    return 0
+  fi
+}
+
 # Статистика запуска
 successful_services=0
 failed_services=0
 total_services=7  # n8n, flowise, qdrant, crawl4ai, watchtower, netdata, adminer
+
+# Проверка и создание сети app-network для всех сервисов
+ensure_docker_network "app-network"
 
 # Запуск n8n стека (включает Caddy, Postgres, Redis, Adminer)
 start_service "$N8N_COMPOSE_FILE" "n8n" "$ENV_FILE"
