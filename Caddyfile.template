@@ -11,7 +11,7 @@ n8n.{$DOMAIN_NAME} {
 
 # Flowise
 flowise.{$DOMAIN_NAME} {
-    reverse_proxy flowise:3000
+    reverse_proxy flowise:3001
 }
 
 # Adminer

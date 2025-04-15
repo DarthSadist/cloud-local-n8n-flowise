@@ -104,8 +104,9 @@ QDRANT_API_KEY=$QDRANT_API_KEY
 CRAWL4AI_JWT_SECRET=$CRAWL4AI_JWT_SECRET
 EOL
 
-if [ $? -ne 0 ]; then
-  echo "ERROR: Failed to create .env file"
+# Проверка успешности создания .env файла
+if [ ! -f ".env" ]; then
+  echo "ERROR: Failed to create .env file. Please check permissions and disk space in the project root directory." >&2
   exit 1
 fi
 

@@ -191,6 +191,14 @@ for TPL in "${REQUIRED_TEMPLATES[@]}"; do
 done
 echo "All required template files found."
 
+# Проверка наличия .env файла перед подстановкой
+if [ ! -f "../.env" ]; then
+    echo "ERROR: .env file not found in project root. Cannot proceed with template substitution." >&2
+    echo "Please ensure Step 5 (generate secrets) completed successfully." >&2
+    exit 1
+fi
+echo "Found .env file. Proceeding with substitutions..."
+
 # Copy templates to working files
 # === Генерация всех docker-compose.yaml из .template через envsubst ===
 echo "Генерируем docker-compose .yaml файлы из всех .template..."
@@ -203,9 +211,10 @@ for tmpl in *.template; do
   # Получаем имя файла без расширения .template
   filename="${tmpl%.template}"
   echo "→ Генерируем $filename из $tmpl ..."
-  envsubst < "$tmpl" > "$filename"
+  ( set -o allexport; source ../.env; set +o allexport; envsubst < "$tmpl" > "$filename" )
   if [ $? -ne 0 ]; then
-    echo "ОШИБКА: Не удалось сгенерировать $filename из $tmpl через envsubst!"
+    echo "ERROR: Failed to process template '$tmpl' with envsubst. Check .env file and template syntax." >&2
+    rm -f "$filename" # Удаляем частично созданный файл
     exit 1
   fi
   echo "✔ $filename успешно создан."
@@ -219,9 +228,10 @@ if [ ! -f "$CADDY_TEMPLATE" ]; then
   echo "ОШИБКА: $CADDY_TEMPLATE не найден!"
   exit 1
 fi
-envsubst < "$CADDY_TEMPLATE" > "$CADDY_OUTPUT"
+( set -o allexport; source ../.env; set +o allexport; envsubst < "$CADDY_TEMPLATE" > "$CADDY_OUTPUT" )
 if [ $? -ne 0 ]; then
-  echo "ОШИБКА: Не удалось сгенерировать $CADDY_OUTPUT из $CADDY_TEMPLATE через envsubst!"
+  echo "ERROR: Failed to process template '$CADDY_TEMPLATE' with envsubst. Check .env file and template syntax." >&2
+  rm -f "$CADDY_OUTPUT" # Удаляем частично созданный файл
   exit 1
 fi
 echo "✔ $CADDY_OUTPUT успешно создан."
@@ -244,8 +254,9 @@ for file in "${FILES_TO_COPY[@]}"; do
   if [ -f "$file" ]; then
     sudo cp "$file" "/opt/$file"
     if [ $? -ne 0 ]; then
-      echo "ОШИБКА: Не удалось скопировать $file в /opt/"
-      exit 1
+      echo "ERROR: Failed to copy $file to /opt/. Check permissions." >&2
+      # Возможно, стоит прервать выполнение, если копирование критично
+      # exit 1
     fi
     echo "✔ $file скопирован в /opt/"
   else
@@ -253,34 +264,34 @@ for file in "${FILES_TO_COPY[@]}"; do
   fi
 done
 
-# Check if copy operations were successful
-FILES_TO_CHECK=(
-    "/opt/n8n-docker-compose.yaml"
-    "/opt/flowise-docker-compose.yaml"
-    "/opt/qdrant-docker-compose.yaml"
-    "/opt/crawl4ai-docker-compose.yaml"
-    "/opt/watchtower-docker-compose.yaml"
-    "/opt/netdata-docker-compose.yaml"
-    "/opt/Caddyfile" # Добавляем Caddyfile в список проверки
+# Проверка наличия скопированных файлов в /opt/
+echo "Verifying copied files in /opt/..."
+COPIED_FILES=(
+    n8n-docker-compose.yaml
+    flowise-docker-compose.yaml
+    qdrant-docker-compose.yaml
+    crawl4ai-docker-compose.yaml
+    watchtower-docker-compose.yaml
+    netdata-docker-compose.yaml
+    Caddyfile
 )
 
-COPY_ERROR=0
-for file in "${FILES_TO_CHECK[@]}"; do
-  if [ ! -f "$file" ]; then
-    echo "ERROR: Failed to copy or find $file in /opt/" >&2
-    COPY_ERROR=1 # Устанавливаем флаг ошибки
+ALL_COPIED=true
+for file in "${COPIED_FILES[@]}"; do
+  if [ ! -f "/opt/$file" ]; then
+    echo "ERROR: File /opt/$file was not found after copy attempt." >&2
+    ALL_COPIED=false
   else
-    echo "✅ Файл $file найден в /opt/"
+     echo "✅ File /opt/$file found in /opt/"
   fi
 done
 
-# Проверяем флаг ошибки перед выходом
-if [ $COPY_ERROR -ne 0 ]; then
-    echo "❌ Ошибка при копировании одного или нескольких файлов в /opt/. Прерывание." >&2
+if [ "$ALL_COPIED" = false ]; then
+    echo "ERROR: Not all required files were successfully copied to /opt/. Aborting." >&2
     exit 1
 fi
 
-echo "✅ Все необходимые файлы успешно скопированы в /opt/."
+echo "✅ All required files successfully copied to /opt/."
 
 echo "✅ Templates and configuration files successfully created and copied"
 exit 0
