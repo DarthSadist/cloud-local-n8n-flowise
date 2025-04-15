@@ -199,29 +199,42 @@ for tmpl in *.template; do
   if [[ "$tmpl" == "Caddyfile.template" ]]; then
     continue
   fi
-  yaml="${tmpl%.template}.yaml"
-  echo "→ Генерируем $yaml из $tmpl ..."
-  envsubst < "$tmpl" > "$yaml"
+  
+  # Получаем имя файла без расширения .template
+  filename="${tmpl%.template}"
+  echo "→ Генерируем $filename из $tmpl ..."
+  envsubst < "$tmpl" > "$filename"
   if [ $? -ne 0 ]; then
-    echo "ОШИБКА: Не удалось сгенерировать $yaml из $tmpl через envsubst!"
+    echo "ОШИБКА: Не удалось сгенерировать $filename из $tmpl через envsubst!"
     exit 1
   fi
-  echo "✔ $yaml успешно создан."
+  echo "✔ $filename успешно создан."
 done
 
-echo "Копируем docker-compose.yaml файлы в /opt/ ..."
+echo "Копируем docker-compose файлы в /opt/ ..."
 sudo mkdir -p /opt/
-for yaml in *.yaml; do
-  # Пропускаем не compose-файлы
-  if [[ "$yaml" == "Caddyfile.yaml" ]]; then
-    continue
+
+# Копируем все docker-compose файлы
+FILES_TO_COPY=(
+    "n8n-docker-compose.yaml"
+    "flowise-docker-compose.yaml"
+    "qdrant-docker-compose.yaml"
+    "crawl4ai-docker-compose.yaml"
+    "watchtower-docker-compose.yaml"
+    "netdata-docker-compose.yaml"
+)
+
+for file in "${FILES_TO_COPY[@]}"; do
+  if [ -f "$file" ]; then
+    sudo cp "$file" "/opt/$file"
+    if [ $? -ne 0 ]; then
+      echo "ОШИБКА: Не удалось скопировать $file в /opt/"
+      exit 1
+    fi
+    echo "✔ $file скопирован в /opt/"
+  else
+    echo "⚠️ ВНИМАНИЕ: Файл $file не найден для копирования"
   fi
-  sudo cp "$yaml" "/opt/$yaml"
-  if [ $? -ne 0 ]; then
-    echo "ОШИБКА: Не удалось скопировать $yaml в /opt/"
-    exit 1
-  fi
-  echo "✔ $yaml скопирован в /opt/"
 done
 
 
