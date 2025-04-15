@@ -49,16 +49,14 @@ fi
 
 echo "Starting n8n, Flowise, Qdrant, Adminer, Crawl4AI, Watchtower, Netdata, Caddy, and services via Docker Compose..."
 
-# Start n8n, Caddy, PostgreSQL, Redis stack
-# Using --env-file ensures variables are loaded correctly
-echo "Starting n8n stack (includes Caddy, Postgres, Redis)..."
+# Start all service stacks, ensuring all containers are up regardless of which compose file they are in
+
+# Start n8n stack (includes Caddy, Postgres, Redis, Adminer if present)
+echo "Starting n8n stack (n8n, Caddy, Postgres, Redis, Adminer)..."
 sudo docker compose -f "$N8N_COMPOSE_FILE" --env-file "$ENV_FILE" up -d || { echo "Failed to start n8n stack"; exit 1; }
 
-# Wait a bit for the network to be created
-echo "Waiting for docker network creation..."
+# Wait for network creation
 sleep 5
-
-# Check if app-network was created
 if ! sudo docker network inspect app-network &> /dev/null; then
   echo "ERROR: Failed to create app-network"
   exit 1
@@ -76,14 +74,19 @@ sudo docker compose -f "$QDRANT_COMPOSE_FILE" --env-file "$ENV_FILE" up -d || { 
 echo "Starting Crawl4AI stack..."
 sudo docker compose -f "$CRAWL4AI_COMPOSE_FILE" --env-file "$ENV_FILE" up -d || { echo "Failed to start Crawl4AI stack"; exit 1; }
 
-# Start Watchtower stack (no env file needed)
-echo "Starting Watchtower stack..."
+# Start Watchtower stack
 sudo docker compose -f "$WATCHTOWER_COMPOSE_FILE" up -d || { echo "Failed to start Watchtower stack"; exit 1; }
 
 # Start Netdata stack
 echo "Starting Netdata stack..."
-# Using --env-file because hostname uses DOMAIN_NAME
 sudo docker compose -f "$NETDATA_COMPOSE_FILE" --env-file "$ENV_FILE" up -d || { echo "Failed to start Netdata stack"; exit 1; }
+
+# If Adminer is not in a separate compose file, ensure it is up via n8n-docker-compose.yaml
+if ! sudo docker ps | grep -q "adminer"; then
+  echo "Adminer is not running. Attempting to start Adminer from n8n-docker-compose.yaml..."
+  sudo docker compose -f "$N8N_COMPOSE_FILE" --env-file "$ENV_FILE" up -d adminer || echo "Warning: Could not start Adminer. Please check configuration."
+fi
+
 
 # Wait a few seconds for services to initialize
 echo "Waiting for services to initialize..."

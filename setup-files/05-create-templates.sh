@@ -252,5 +252,36 @@ else
   exit 1
 fi
 
-echo "✅ Templates and configuration files created and copied to /opt/"
+echo "Copying working configuration files to /opt/..."
+
+# Copy YAML files
+TARGET_DIR="/opt"
+for yaml_file in n8n-docker-compose.yaml flowise-docker-compose.yaml qdrant-docker-compose.yaml crawl4ai-docker-compose.yaml watchtower-docker-compose.yaml netdata-docker-compose.yaml; do
+  if [ -f "$yaml_file" ]; then
+    sudo cp "$yaml_file" "$TARGET_DIR/$yaml_file" || { echo "ERROR: Failed to copy $yaml_file to $TARGET_DIR"; exit 1; }
+    # Optional: Set permissions if needed (e.g., read-only for root)
+    sudo chown root:root "$TARGET_DIR/$yaml_file" 2>/dev/null || true
+    sudo chmod 644 "$TARGET_DIR/$yaml_file" 2>/dev/null || true
+  else
+    echo "ERROR: Working file $yaml_file not found for copying to $TARGET_DIR." >&2
+    exit 1
+  fi
+done
+
+# Copy Caddyfile
+CADDY_TARGET_DIR="/opt/n8n" # Caddyfile goes into a subdirectory for n8n volume mount
+sudo mkdir -p "$CADDY_TARGET_DIR" || { echo "ERROR: Failed to create $CADDY_TARGET_DIR"; exit 1; }
+if [ -f "Caddyfile" ]; then
+  sudo cp "Caddyfile" "$CADDY_TARGET_DIR/Caddyfile" || { echo "ERROR: Failed to copy Caddyfile to $CADDY_TARGET_DIR"; exit 1; }
+  # Optional: Set permissions
+  sudo chown root:root "$CADDY_TARGET_DIR/Caddyfile" 2>/dev/null || true
+  sudo chmod 644 "$CADDY_TARGET_DIR/Caddyfile" 2>/dev/null || true
+else
+  echo "ERROR: Working Caddyfile not found for copying to $CADDY_TARGET_DIR." >&2
+  exit 1
+fi
+
+echo "✅ Configuration files successfully copied to /opt/"
+
+echo "✅ Templates and configuration files successfully created and copied"
 exit 0
