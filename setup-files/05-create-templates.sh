@@ -195,7 +195,7 @@ echo "All required template files found."
 # === Генерация всех docker-compose.yaml из .template через envsubst ===
 echo "Генерируем docker-compose .yaml файлы из всех .template..."
 for tmpl in *.template; do
-  # Пропускаем Caddyfile.template, если не нужен .yaml
+  # Пропускаем Caddyfile.template, т.к. он обрабатывается отдельно
   if [[ "$tmpl" == "Caddyfile.template" ]]; then
     continue
   fi
@@ -211,10 +211,25 @@ for tmpl in *.template; do
   echo "✔ $filename успешно создан."
 done
 
-echo "Копируем docker-compose файлы в /opt/ ..."
+# === Обработка Caddyfile ===
+CADDY_TEMPLATE="Caddyfile.template"
+CADDY_OUTPUT="Caddyfile"
+echo "→ Генерируем $CADDY_OUTPUT из $CADDY_TEMPLATE ..."
+if [ ! -f "$CADDY_TEMPLATE" ]; then
+  echo "ОШИБКА: $CADDY_TEMPLATE не найден!"
+  exit 1
+fi
+envsubst < "$CADDY_TEMPLATE" > "$CADDY_OUTPUT"
+if [ $? -ne 0 ]; then
+  echo "ОШИБКА: Не удалось сгенерировать $CADDY_OUTPUT из $CADDY_TEMPLATE через envsubst!"
+  exit 1
+fi
+echo "✔ $CADDY_OUTPUT успешно создан."
+
+echo "Копируем конфигурационные и docker-compose файлы в /opt/ ..."
 sudo mkdir -p /opt/
 
-# Копируем все docker-compose файлы
+# Копируем все docker-compose файлы и Caddyfile
 FILES_TO_COPY=(
     "n8n-docker-compose.yaml"
     "flowise-docker-compose.yaml"
@@ -222,6 +237,7 @@ FILES_TO_COPY=(
     "crawl4ai-docker-compose.yaml"
     "watchtower-docker-compose.yaml"
     "netdata-docker-compose.yaml"
+    "Caddyfile" # Добавляем Caddyfile в список копирования
 )
 
 for file in "${FILES_TO_COPY[@]}"; do
@@ -237,7 +253,6 @@ for file in "${FILES_TO_COPY[@]}"; do
   fi
 done
 
-
 # Check if copy operations were successful
 FILES_TO_CHECK=(
     "/opt/n8n-docker-compose.yaml"
@@ -246,63 +261,26 @@ FILES_TO_CHECK=(
     "/opt/crawl4ai-docker-compose.yaml"
     "/opt/watchtower-docker-compose.yaml"
     "/opt/netdata-docker-compose.yaml"
-    "/opt/Caddyfile"
+    "/opt/Caddyfile" # Добавляем Caddyfile в список проверки
 )
 
-COPY_FAILED=0
-for FILE_PATH in "${FILES_TO_CHECK[@]}"; do
-    if [ ! -f "$FILE_PATH" ]; then
-        echo "ERROR: Failed to copy or find $FILE_PATH in /opt/" >&2
-        COPY_FAILED=1
-    fi
-done
-
-if [ $COPY_FAILED -eq 1 ]; then
-   exit 1
-fi
-
-# Process Caddyfile template
-echo "Processing Caddyfile template..."
-if sudo sed -e "s/{DOMAIN_NAME}/$DOMAIN_NAME/g" -e "s/{USER_EMAIL}/$USER_EMAIL/g" Caddyfile.template > /opt/Caddyfile; then
-  echo "Caddyfile created in /opt/Caddyfile"
-  # Set ownership and permissions
-  sudo chown root:root /opt/Caddyfile 2>/dev/null || echo "Warning: could not set ownership for /opt/Caddyfile"
-  sudo chmod 644 /opt/Caddyfile 2>/dev/null || echo "Warning: could not set permissions for /opt/Caddyfile"
-else
-  echo "ERROR: Failed to process Caddyfile.template" >&2
-  exit 1
-fi
-
-echo "Copying working configuration files to /opt/..."
-
-# Copy YAML files
-TARGET_DIR="/opt"
-for yaml_file in n8n-docker-compose.yaml flowise-docker-compose.yaml qdrant-docker-compose.yaml crawl4ai-docker-compose.yaml watchtower-docker-compose.yaml netdata-docker-compose.yaml; do
-  if [ -f "$yaml_file" ]; then
-    sudo cp "$yaml_file" "$TARGET_DIR/$yaml_file" || { echo "ERROR: Failed to copy $yaml_file to $TARGET_DIR"; exit 1; }
-    # Optional: Set permissions if needed (e.g., read-only for root)
-    sudo chown root:root "$TARGET_DIR/$yaml_file" 2>/dev/null || true
-    sudo chmod 644 "$TARGET_DIR/$yaml_file" 2>/dev/null || true
+COPY_ERROR=0
+for file in "${FILES_TO_CHECK[@]}"; do
+  if [ ! -f "$file" ]; then
+    echo "ERROR: Failed to copy or find $file in /opt/" >&2
+    COPY_ERROR=1 # Устанавливаем флаг ошибки
   else
-    echo "ERROR: Working file $yaml_file not found for copying to $TARGET_DIR." >&2
-    exit 1
+    echo "✅ Файл $file найден в /opt/"
   fi
 done
 
-# Copy Caddyfile
-CADDY_TARGET_DIR="/opt/n8n" # Caddyfile goes into a subdirectory for n8n volume mount
-sudo mkdir -p "$CADDY_TARGET_DIR" || { echo "ERROR: Failed to create $CADDY_TARGET_DIR"; exit 1; }
-if [ -f "Caddyfile" ]; then
-  sudo cp "Caddyfile" "$CADDY_TARGET_DIR/Caddyfile" || { echo "ERROR: Failed to copy Caddyfile to $CADDY_TARGET_DIR"; exit 1; }
-  # Optional: Set permissions
-  sudo chown root:root "$CADDY_TARGET_DIR/Caddyfile" 2>/dev/null || true
-  sudo chmod 644 "$CADDY_TARGET_DIR/Caddyfile" 2>/dev/null || true
-else
-  echo "ERROR: Working Caddyfile not found for copying to $CADDY_TARGET_DIR." >&2
-  exit 1
+# Проверяем флаг ошибки перед выходом
+if [ $COPY_ERROR -ne 0 ]; then
+    echo "❌ Ошибка при копировании одного или нескольких файлов в /opt/. Прерывание." >&2
+    exit 1
 fi
 
-echo "✅ Configuration files successfully copied to /opt/"
+echo "✅ Все необходимые файлы успешно скопированы в /opt/."
 
 echo "✅ Templates and configuration files successfully created and copied"
 exit 0

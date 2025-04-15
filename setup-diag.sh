@@ -44,7 +44,7 @@ done
 if [ ! -w "/opt/" ]; then
     echo "⚠️ Внимание: недостаточно прав для записи в /opt/"
     # Попытка исправить права
-    sudo chmod 755 /opt/
+    sudo chmod 777 /opt/
     if [ ! -w "/opt/" ]; then
         echo "❌ Не удалось установить права на запись в /opt/"
         exit 1
