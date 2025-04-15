@@ -47,116 +47,210 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
-echo "Starting n8n, Flowise, Qdrant, Adminer, Crawl4AI, Watchtower, Netdata, Caddy, and services via Docker Compose..."
+echo "========================================================="
+echo "  ⚙️ Старт всех сервисов: n8n, Flowise, Qdrant, Adminer, Crawl4AI, Watchtower, Netdata, Caddy, PostgreSQL, Redis"
+echo "=========================================================" 
 
-# Start all service stacks, ensuring all containers are up regardless of which compose file they are in
+# Функция запуска сервиса с повторными попытками
+start_service() {
+  local compose_file=$1
+  local service_name=$2
+  local env_file=$3
+  local max_retries=2
+  local retry_count=0
 
-# Start n8n stack (includes Caddy, Postgres, Redis, Adminer if present)
-echo "Starting n8n stack (n8n, Caddy, Postgres, Redis, Adminer)..."
-sudo docker compose -f "$N8N_COMPOSE_FILE" --env-file "$ENV_FILE" up -d || { echo "Failed to start n8n stack"; exit 1; }
+  echo "\n======================"
+  echo "⚡ Запуск $service_name..."
+  echo "======================\n"
+  
+  # Команда для запуска сервиса
+  local start_cmd="sudo docker compose -f $compose_file"
+  if [ -n "$env_file" ]; then
+    start_cmd="$start_cmd --env-file $env_file"
+  fi
+  start_cmd="$start_cmd up -d"
+  
+  # Пробуем запустить с повторными попытками
+  while [ $retry_count -lt $max_retries ]; do
+    echo "Запуск $service_name (попытка $((retry_count+1))/$max_retries)..."
+    eval $start_cmd
+    
+    if [ $? -eq 0 ]; then
+      local verify_cmd="sudo docker ps | grep -q \"$service_name\""
+      sleep 3  # Короткая пауза для того, чтобы контейнер успел стартовать
+      # Проверяем запуск
+      if eval $verify_cmd; then
+        echo "✅ $service_name успешно запущен"
+        return 0
+      else
+        echo "⚠️ $service_name не появился в списке контейнеров"
+      fi
+    fi
 
-# Wait for network creation
-sleep 5
-if ! sudo docker network inspect app-network &> /dev/null; then
-  echo "ERROR: Failed to create app-network"
-  exit 1
-fi
+    retry_count=$((retry_count+1))
+    if [ $retry_count -lt $max_retries ]; then
+      echo "⚠️ Сбой при запуске $service_name, повторная попытка через 5 секунд..."
+      sleep 5
+    else
+      echo "❌ Не удалось запустить $service_name после $max_retries попыток!"
+      return 1
+    fi
+  done
+}
 
-# Start Flowise stack
-echo "Starting Flowise stack..."
-sudo docker compose -f "$FLOWISE_COMPOSE_FILE" --env-file "$ENV_FILE" up -d || { echo "Failed to start Flowise stack"; exit 1; }
+# Статистика запуска
+successful_services=0
+failed_services=0
+total_services=7  # n8n, flowise, qdrant, crawl4ai, watchtower, netdata, adminer
 
-# Start Qdrant stack
-echo "Starting Qdrant stack..."
-sudo docker compose -f "$QDRANT_COMPOSE_FILE" --env-file "$ENV_FILE" up -d || { echo "Failed to start Qdrant stack"; exit 1; }
-
-# Start Crawl4AI stack
-echo "Starting Crawl4AI stack..."
-sudo docker compose -f "$CRAWL4AI_COMPOSE_FILE" --env-file "$ENV_FILE" up -d || { echo "Failed to start Crawl4AI stack"; exit 1; }
-
-# Start Watchtower stack
-sudo docker compose -f "$WATCHTOWER_COMPOSE_FILE" up -d || { echo "Failed to start Watchtower stack"; exit 1; }
-
-# Start Netdata stack
-echo "Starting Netdata stack..."
-sudo docker compose -f "$NETDATA_COMPOSE_FILE" --env-file "$ENV_FILE" up -d || { echo "Failed to start Netdata stack"; exit 1; }
-
-# If Adminer is not in a separate compose file, ensure it is up via n8n-docker-compose.yaml
-if ! sudo docker ps | grep -q "adminer"; then
-  echo "Adminer is not running. Attempting to start Adminer from n8n-docker-compose.yaml..."
-  sudo docker compose -f "$N8N_COMPOSE_FILE" --env-file "$ENV_FILE" up -d adminer || echo "Warning: Could not start Adminer. Please check configuration."
-fi
-
-
-# Wait a few seconds for services to initialize
-echo "Waiting for services to initialize..."
-sleep 15
-
-# Check status
-echo "Checking status of Docker containers..."
-sudo docker compose -f "$N8N_COMPOSE_FILE" --env-file "$ENV_FILE" ps
-sudo docker compose -f "$FLOWISE_COMPOSE_FILE" --env-file "$ENV_FILE" ps
-sudo docker compose -f "$QDRANT_COMPOSE_FILE" --env-file "$ENV_FILE" ps
-sudo docker compose -f "$CRAWL4AI_COMPOSE_FILE" --env-file "$ENV_FILE" ps
-sudo docker compose -f "$WATCHTOWER_COMPOSE_FILE" ps
-sudo docker compose -f "$NETDATA_COMPOSE_FILE" --env-file "$ENV_FILE" ps
-
-# Basic check if Caddy is running (port 80/443 should be listened by Docker proxy)
-if ! sudo ss -tulnp | grep -q 'docker-proxy.*:80' || ! sudo ss -tulnp | grep -q 'docker-proxy.*:443'; then
-    echo "ERROR: Caddy reverse proxy does not seem to be listening on ports 80 or 443." >&2
+# Запуск n8n стека (включает Caddy, Postgres, Redis, Adminer)
+start_service "$N8N_COMPOSE_FILE" "n8n" "$ENV_FILE"
+if [ $? -eq 0 ]; then
+  ((successful_services++))
+  # Проверка сети Docker
+  echo "\nПроверка сети Docker..."
+  sleep 5
+  if ! sudo docker network inspect app-network &> /dev/null; then
+    echo "❌ Ошибка: Сеть app-network не создана"
+    exit 1
+  else
+    echo "✅ Сеть app-network успешно создана"
+  fi
 else
-    echo "Caddy appears to be running."
-fi
-
-# Check that all containers are running
-echo "Checking running containers..."
-sleep 5
-
-if ! sudo docker ps | grep -q "n8n"; then
-  echo "ERROR: Container n8n is not running"
+  ((failed_services++))
+  echo "❌ Критическая ошибка: Не удалось запустить n8n стек"
   exit 1
 fi
 
-if ! sudo docker ps | grep -q "caddy"; then
-  echo "ERROR: Container caddy is not running"
+# Запуск Flowise стека
+start_service "$FLOWISE_COMPOSE_FILE" "flowise" "$ENV_FILE"
+if [ $? -eq 0 ]; then
+  ((successful_services++))
+else
+  ((failed_services++))
+  echo "❌ Критическая ошибка: Не удалось запустить Flowise стек"
   exit 1
 fi
 
-if ! sudo docker ps | grep -q "flowise"; then
-  echo "ERROR: Container flowise is not running"
+
+
+# Запуск оставшихся сервисов с отслеживанием статуса
+
+# Запуск Qdrant
+start_service "$QDRANT_COMPOSE_FILE" "qdrant" "$ENV_FILE"
+if [ $? -eq 0 ]; then
+  ((successful_services++))
+else
+  ((failed_services++))
+  echo "❌ Критическая ошибка: Не удалось запустить Qdrant стек"
   exit 1
 fi
 
-if ! sudo docker ps | grep -q "qdrant"; then
-  echo "ERROR: Container qdrant is not running"
+# Запуск Crawl4AI
+start_service "$CRAWL4AI_COMPOSE_FILE" "crawl4ai" "$ENV_FILE"
+if [ $? -eq 0 ]; then
+  ((successful_services++))
+else
+  ((failed_services++))
+  echo "❌ Критическая ошибка: Не удалось запустить Crawl4AI стек"
   exit 1
 fi
+
+# Запуск Watchtower
+start_service "$WATCHTOWER_COMPOSE_FILE" "watchtower" ""
+if [ $? -eq 0 ]; then
+  ((successful_services++))
+else
+  ((failed_services++))
+  echo "❌ Критическая ошибка: Не удалось запустить Watchtower стек"
+  exit 1
+fi
+
+# Запуск Netdata
+start_service "$NETDATA_COMPOSE_FILE" "netdata" "$ENV_FILE"
+if [ $? -eq 0 ]; then
+  ((successful_services++))
+else
+  ((failed_services++))
+  echo "❌ Критическая ошибка: Не удалось запустить Netdata стек"
+  exit 1
+fi
+
+# Запуск Adminer (или проверка, если уже существует в n8n-docker-compose)
+echo "\n======================="
+echo "⚡ Проверка/запуск Adminer..."
+echo "=======================\n"
 
 if ! sudo docker ps | grep -q "adminer"; then
-  echo "ERROR: Container adminer is not running" >&2
-  # Decide if this is critical enough to exit
-  # exit 1
+  echo "Adminer не запущен. Пробуем запустить его из n8n-docker-compose.yaml..."
+  sudo docker compose -f "$N8N_COMPOSE_FILE" --env-file "$ENV_FILE" up -d adminer
+  sleep 3
+  if sudo docker ps | grep -q "adminer"; then
+    echo "✅ Adminer успешно запущен"
+    ((successful_services++))
+  else
+    echo "⚠️ Предупреждение: Adminer не удалось запустить, но это не критично"
+    ((failed_services++))
+  fi
+else
+  echo "✅ Adminer уже запущен"
+  ((successful_services++))
 fi
 
-if ! sudo docker ps | grep -q "crawl4ai"; then
-  echo "ERROR: Container crawl4ai is not running" >&2
-  # Decide if this is critical enough to exit
-  # exit 1
+# Ждем инициализацию всех сервисов
+echo "\n\n=========================================="
+echo "🕒 Ожидание инициализации всех сервисов..."
+echo "==========================================\n"
+sleep 8
+
+# Итоговая проверка статуса
+echo "\n\n=========================================="
+echo "🔍 ФИНАЛЬНАЯ ПРОВЕРКА ВСЕХ СЕРВИСОВ"
+echo "==========================================\n"
+
+# Функция для проверки статуса сервиса
+check_service() {
+  local service=$1
+  if sudo docker ps | grep -q "$service"; then
+    echo "✅ $service - ЗАПУЩЕН"
+    return 0
+  else
+    echo "❌ $service - НЕ ЗАПУЩЕН"
+    return 1
+  fi
+}
+
+# Проверяем все критические сервисы
+check_service "n8n"
+check_service "caddy"
+check_service "flowise"
+check_service "qdrant"
+check_service "crawl4ai" 
+check_service "watchtower"
+check_service "netdata"
+check_service "adminer" # Не критично, но проверяем
+
+# Проверка, что Caddy слушает нужные порты
+echo "\n- Проверка портов Caddy:"
+if ! sudo ss -tulnp | grep -q 'docker-proxy.*:80' || ! sudo ss -tulnp | grep -q 'docker-proxy.*:443'; then
+    echo "⚠️ Внимание: Caddy (обратный прокси) не слушает порты 80 или 443"
+else
+    echo "✅ Caddy слушает порты 80 и 443"
 fi
 
-if ! sudo docker ps | grep -q "watchtower"; then
-  echo "ERROR: Container watchtower is not running" >&2
-  # Decide if this is critical enough to exit
-  # exit 1
+# Выводим итоговую статистику
+echo "\n========================================================="
+echo "🏁 РЕЗУЛЬТАТЫ ЗАПУСКА:"
+echo "   ✓ Успешно запущено: $successful_services из $total_services сервисов"
+echo "   ✗ Не запущено: $failed_services сервисов"
+if [ $failed_services -eq 0 ]; then
+  echo "\n✅ ВСЕ СЕРВИСЫ УСПЕШНО ЗАПУЩЕНЫ!"
+  echo "========================================================="
+  echo "Сервисы успешно запущены! Скоро они станут доступны через веб-интерфейс."
+else
+  echo "\n⚠️ ВНИМАНИЕ: Не все сервисы запущены успешно."
+  echo "========================================================="
+  echo "Некоторые сервисы не запустились. Проверьте логи и конфигурацию."
 fi
 
-if ! sudo docker ps | grep -q "netdata"; then
-  echo "ERROR: Container netdata is not running" >&2
-  # Decide if this is critical enough to exit
-  # exit 1
-fi
-
-echo "✅ Services n8n, Flowise, Qdrant, Adminer, Crawl4AI, Watchtower, Netdata, Caddy successfully started"
-echo "Services started. Check the output above for status."
-echo "It might take a few minutes for all services to become fully available."
 exit 0

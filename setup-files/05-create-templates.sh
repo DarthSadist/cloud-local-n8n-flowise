@@ -192,30 +192,38 @@ done
 echo "All required template files found."
 
 # Copy templates to working files
-cp n8n-docker-compose.yaml.template n8n-docker-compose.yaml
-if [ $? -ne 0 ]; then
-  echo "ERROR: Failed to copy n8n-docker-compose.yaml.template to working file"
-  exit 1
-fi
+# === Генерация всех docker-compose.yaml из .template через envsubst ===
+echo "Генерируем docker-compose .yaml файлы из всех .template..."
+for tmpl in *.template; do
+  # Пропускаем Caddyfile.template, если не нужен .yaml
+  if [[ "$tmpl" == "Caddyfile.template" ]]; then
+    continue
+  fi
+  yaml="${tmpl%.template}.yaml"
+  echo "→ Генерируем $yaml из $tmpl ..."
+  envsubst < "$tmpl" > "$yaml"
+  if [ $? -ne 0 ]; then
+    echo "ОШИБКА: Не удалось сгенерировать $yaml из $tmpl через envsubst!"
+    exit 1
+  fi
+  echo "✔ $yaml успешно создан."
+done
 
-cp flowise-docker-compose.yaml.template flowise-docker-compose.yaml
-cp qdrant-docker-compose.yaml.template qdrant-docker-compose.yaml
-cp crawl4ai-docker-compose.yaml.template crawl4ai-docker-compose.yaml
-cp watchtower-docker-compose.yaml.template watchtower-docker-compose.yaml
-cp netdata-docker-compose.yaml.template netdata-docker-compose.yaml
-
-echo "Copying configuration files to /opt/ ..."
-
-# Create /opt/ directory if it doesn't exist
+echo "Копируем docker-compose.yaml файлы в /opt/ ..."
 sudo mkdir -p /opt/
+for yaml in *.yaml; do
+  # Пропускаем не compose-файлы
+  if [[ "$yaml" == "Caddyfile.yaml" ]]; then
+    continue
+  fi
+  sudo cp "$yaml" "/opt/$yaml"
+  if [ $? -ne 0 ]; then
+    echo "ОШИБКА: Не удалось скопировать $yaml в /opt/"
+    exit 1
+  fi
+  echo "✔ $yaml скопирован в /opt/"
+done
 
-# Copy essential files to /opt/
-sudo cp n8n-docker-compose.yaml "/opt/n8n-docker-compose.yaml"
-sudo cp flowise-docker-compose.yaml "/opt/flowise-docker-compose.yaml"
-sudo cp qdrant-docker-compose.yaml "/opt/qdrant-docker-compose.yaml"
-sudo cp crawl4ai-docker-compose.yaml "/opt/crawl4ai-docker-compose.yaml"
-sudo cp watchtower-docker-compose.yaml "/opt/watchtower-docker-compose.yaml"
-sudo cp netdata-docker-compose.yaml "/opt/netdata-docker-compose.yaml"
 
 # Check if copy operations were successful
 FILES_TO_CHECK=(
