@@ -1,10 +1,59 @@
 #!/bin/bash
 
-echo "Starting services..."
+echo "=================================================================="
+echo "🚀 Запуск всех сервисов (n8n, Flowise, Qdrant, Adminer, и др.)"
+echo "==================================================================" 
 
-# Check if Docker is running
+# Функция для проверки существования Docker-образа
+check_docker_image() {
+    local image=$1
+    echo "📋 Проверка доступности образа: $image"
+    if ! sudo docker pull $image &>/dev/null; then
+        echo "❌ ОШИБКА: Образ Docker '$image' не найден или недоступен" >&2
+        return 1
+    else
+        echo "✅ Образ '$image' успешно загружен"
+        return 0
+    fi
+}
+
+# Функция для просмотра логов контейнера
+show_container_logs() {
+    local container=$1
+    local lines=${2:-10}
+    echo "\n📝 Последние логи контейнера $container:"
+    sudo docker logs $container --tail $lines 2>/dev/null || echo "Логи недоступны"
+}
+
+# Функция диагностики
+diagnostic_info() {
+    echo "\n==== 🔍 ДИАГНОСТИЧЕСКАЯ ИНФОРМАЦИЯ ===="
+    echo "\n1. Список запущенных контейнеров:"
+    sudo docker ps
+    
+    echo "\n2. Список всех контейнеров (включая остановленные):"
+    sudo docker ps -a
+    
+    echo "\n3. Сетевые интерфейсы Docker:"
+    sudo docker network ls
+    
+    echo "\n4. Том qdrant_storage:"
+    sudo docker volume inspect qdrant_storage 2>/dev/null || echo "Том qdrant_storage не найден"
+    
+    echo "\n5. Переменные окружения в .env файле:"
+    grep -E "QDRANT_API_KEY|CRAWL4AI_JWT_SECRET" $ENV_FILE 2>/dev/null || echo "Переменные не найдены в $ENV_FILE"
+    
+    echo "\n6. Проверка доступности образов Docker:"
+    check_docker_image "n8nio/n8n:latest"
+    check_docker_image "flowiseai/flowise:latest"
+    check_docker_image "qdrant/qdrant:latest"
+    check_docker_image "node:18-alpine" # для crawl4ai
+    check_docker_image "containrrr/watchtower:latest"
+}
+
+# Проверка Docker
 if ! sudo docker info > /dev/null 2>&1; then
-    echo "Error: Docker daemon is not running." >&2
+    echo "❌ КРИТИЧЕСКАЯ ОШИБКА: Docker не запущен" >&2
     exit 1
 fi
 
