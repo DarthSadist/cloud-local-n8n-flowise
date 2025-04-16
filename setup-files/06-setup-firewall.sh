@@ -23,6 +23,16 @@ if command -v ufw &> /dev/null; then
   sudo ufw status | grep -q "Status: active"
   if [ $? -ne 0 ]; then
     echo "UFW is not active, activating..."
+    # Allow necessary ports
+    sudo ufw allow 80/tcp comment 'Allow HTTP'
+    sudo ufw allow 443/tcp comment 'Allow HTTPS'
+
+    # Allow SSH access BEFORE enabling firewall
+    echo "Allowing SSH connections..."
+    sudo ufw allow ssh comment 'Allow SSH access'
+
+    # Enable firewall
+    echo "Enabling firewall..."
     sudo ufw --force enable
     if [ $? -ne 0 ]; then
       echo "ERROR: Failed to activate UFW"
@@ -39,20 +49,16 @@ else
     exit 1
   fi
   
-  # Open ports
-  sudo ufw allow 80
-  if [ $? -ne 0 ]; then
-    echo "ERROR: Failed to open port 80"
-    exit 1
-  fi
-  
-  sudo ufw allow 443
-  if [ $? -ne 0 ]; then
-    echo "ERROR: Failed to open port 443"
-    exit 1
-  fi
-  
-  # Activate firewall
+  # Allow necessary ports
+  sudo ufw allow 80/tcp comment 'Allow HTTP'
+  sudo ufw allow 443/tcp comment 'Allow HTTPS'
+
+  # Allow SSH access BEFORE enabling firewall
+  echo "Allowing SSH connections..."
+  sudo ufw allow ssh comment 'Allow SSH access'
+
+  # Enable firewall
+  echo "Enabling firewall..."
   sudo ufw --force enable
   if [ $? -ne 0 ]; then
     echo "ERROR: Failed to activate UFW"

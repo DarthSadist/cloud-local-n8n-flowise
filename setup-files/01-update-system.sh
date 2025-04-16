@@ -23,6 +23,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Adding -qq option for quieter output and option for automatic service restart
+sudo DEBIAN_FRONTEND=noninteractive apt-get -qq install -y gettext
 sudo DEBIAN_FRONTEND=noninteractive apt-get -qq upgrade $APT_OPTIONS
 if [ $? -ne 0 ]; then
   echo "ERROR: Failed to upgrade packages"

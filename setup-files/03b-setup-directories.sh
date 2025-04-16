@@ -31,13 +31,7 @@ sudo mkdir -p /opt/n8n
 sudo chown -R n8n:n8n /opt/n8n
 echo "✅ Директория настроена."
 
-# Создание Docker volume-ов через цикл
-volumes=("n8n_data" "caddy_data" "postgres_data" "redis_data" "n8n_user_files" "flowise_data" "qdrant_data")
+# Создание Docker volume-ов через цикл -- УДАЛЕНО, теперь в 03-create-volumes.sh
 
-for volume in "${volumes[@]}"; do
-  echo "🐳 Создаём Docker volume: ${volume}..."
-  sudo docker volume create "${volume}" >/dev/null || { echo "❌ Ошибка создания Docker volume: ${volume}"; exit 1; }
-done
-
-echo "🎉 Все директории, пользователи и Docker volume успешно настроены!"
+echo "🎉 Директории и пользователи успешно настроены!"
 exit 0

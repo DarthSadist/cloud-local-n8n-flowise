@@ -6,14 +6,13 @@ echo "Creating Docker volumes..."
 
 VOLUMES=(
     "n8n_data"
-    "n8n_postgres_data"
-    "n8n_redis_data" # Added Redis volume
+    "n8n_postgres_data" # Consistent name for postgres
+    "n8n_redis_data"    # Consistent name for redis
     "flowise_data"
-    "qdrant_storage" # Corrected name
+    "qdrant_storage"    # Consistent name for qdrant
     "caddy_data"
     "caddy_config"
-    # Add other volumes here if needed in the future
-    # "n8n_redis_data" # Only if Redis is actively used by n8n
+    "n8n_user_files"    # Added from 03b
 )
 
 FAILED_VOLUMES=0
