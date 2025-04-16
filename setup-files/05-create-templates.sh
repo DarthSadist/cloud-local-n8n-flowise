@@ -68,6 +68,14 @@ for tmpl in *.template; do
     exit 1
   fi
   echo "✔ $output_path успешно создан."
+  # Автоматическая проверка YAML для n8n-docker-compose.yaml
+  if [[ "$output_path" == "/opt/n8n-docker-compose.yaml" ]]; then
+    if ! docker compose -f "$output_path" config > /dev/null 2>&1; then
+      echo "ОШИБКА: $output_path содержит синтаксические ошибки YAML!" >&2
+      echo "Проверьте шаблон и значения переменных. Установка прервана." >&2
+      exit 1
+    fi
+  fi
 done
 
 # === Генерация Caddyfile из Caddyfile.template ===

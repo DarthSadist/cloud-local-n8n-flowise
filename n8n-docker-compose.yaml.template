@@ -17,6 +17,7 @@ services:
     image: n8nio/n8n:latest
     container_name: n8n
     restart: unless-stopped
+    # Environment variables for n8n
     environment:
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - N8N_USER_MANAGEMENT_DISABLED=false
@@ -26,16 +27,17 @@ services:
       - N8N_DEFAULT_USER_EMAIL=${N8N_DEFAULT_USER_EMAIL}
       - N8N_DEFAULT_USER_PASSWORD=${N8N_DEFAULT_USER_PASSWORD}
       - N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true
-      # Database Configuration - Use PostgreSQL
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
       - DB_POSTGRESDB_USER=${POSTGRES_USER}
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
-      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE} # Timezone
-      # Uncomment the line below if you want to use Redis for queueing
-      # - QUEUE_BULL_REDIS_HOST=n8n_redis # If re-enabling Redis, use a specific service name like n8n_redis
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      # - QUEUE_BULL_REDIS_HOST=n8n_redis
+    # To use Redis for queueing, uncomment the line above and ensure the Redis service is enabled.
+    # All DB_* variables configure PostgreSQL as the backend.
+
     volumes:
       - n8n_data:/home/node/.n8n
       # - /some/host/path:/files # If you need to mount host files
