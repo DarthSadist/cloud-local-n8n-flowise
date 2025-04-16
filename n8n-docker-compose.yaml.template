@@ -1,6 +1,4 @@
- version: '3'
-
-volumes:
+ volumes:
   n8n_data:
     external: true
   n8n_redis_data: # Volume for Redis data
