@@ -72,6 +72,28 @@ QDRANT_API_KEY=$(openssl rand -hex 32)
 # Generate a random CRAWL4AI_JWT_SECRET
 CRAWL4AI_JWT_SECRET=$(openssl rand -hex 32)
 
+# Debug output for all variables
+set +x
+echo "[DEBUG] N8N_ENCRYPTION_KEY: $N8N_ENCRYPTION_KEY"
+echo "[DEBUG] N8N_USER_MANAGEMENT_JWT_SECRET: $N8N_USER_MANAGEMENT_JWT_SECRET"
+echo "[DEBUG] N8N_DEFAULT_USER_EMAIL: $USER_EMAIL"
+echo "[DEBUG] N8N_DEFAULT_USER_PASSWORD: $N8N_PASSWORD"
+echo "[DEBUG] GENERIC_TIMEZONE: $GENERIC_TIMEZONE"
+echo "[DEBUG] FLOWISE_PASSWORD: $FLOWISE_PASSWORD"
+echo "[DEBUG] POSTGRES_DB: $POSTGRES_DB"
+echo "[DEBUG] POSTGRES_USER: $POSTGRES_USER"
+echo "[DEBUG] POSTGRES_PASSWORD: $POSTGRES_PASSWORD"
+echo "[DEBUG] DOMAIN_NAME: $DOMAIN_NAME"
+echo "[DEBUG] QDRANT_API_KEY: $QDRANT_API_KEY"
+echo "[DEBUG] CRAWL4AI_JWT_SECRET: $CRAWL4AI_JWT_SECRET"
+set -x
+
+# Abort if any required variable is empty
+if [ -z "$N8N_ENCRYPTION_KEY" ] || [ -z "$N8N_USER_MANAGEMENT_JWT_SECRET" ] || [ -z "$USER_EMAIL" ] || [ -z "$N8N_PASSWORD" ] || [ -z "$FLOWISE_PASSWORD" ] || [ -z "$POSTGRES_DB" ] || [ -z "$POSTGRES_USER" ] || [ -z "$POSTGRES_PASSWORD" ] || [ -z "$DOMAIN_NAME" ] || [ -z "$QDRANT_API_KEY" ] || [ -z "$CRAWL4AI_JWT_SECRET" ]; then
+  echo "[ERROR] One or more required variables are empty. Aborting .env generation." >&2
+  exit 1
+fi
+
 # Writing values to .env file
 cat > .env << EOL
 # Settings for n8n
