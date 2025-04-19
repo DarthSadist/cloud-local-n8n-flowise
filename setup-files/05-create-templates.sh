@@ -10,6 +10,19 @@ if [ -z "$DOMAIN_NAME" ] || [ -z "$USER_EMAIL" ]; then
   exit 1
 fi
 
+# Проверка свободного места на диске
+FREE_SPACE=$(df -k / | awk 'NR==2 {print $4}')
+MIN_SPACE=5242880  # 5GB в KB
+if [ $FREE_SPACE -lt $MIN_SPACE ]; then
+  echo "❌ ПРЕДУПРЕЖДЕНИЕ: Недостаточно свободного места на диске. Рекомендуется минимум 5GB." >&2
+  echo "Текущее свободное место: $(df -h / | awk 'NR==2 {print $4}')" >&2
+  read -p "Продолжить установку несмотря на недостаток места? (y/n): " CONTINUE
+  if [[ ! $CONTINUE =~ ^[Yy]$ ]]; then
+    echo "Установка прервана пользователем." >&2
+    exit 1
+  fi
+fi
+
 echo "Creating templates and configuration files..."
 
 # Check for required templates in the project root directory
@@ -87,6 +100,27 @@ if [ ! -f "$CADDY_TEMPLATE" ]; then
   echo "ОШИБКА: $CADDY_TEMPLATE не найден!"
   exit 1
 fi
+
+# Проверка наличия переменных в шаблоне
+if ! grep -q '\$USER_EMAIL' "$CADDY_TEMPLATE"; then
+  echo "ПРЕДУПРЕЖДЕНИЕ: В шаблоне Caddyfile отсутствует переменная \$USER_EMAIL" >&2
+fi
+
+if ! grep -q '\$DOMAIN_NAME' "$CADDY_TEMPLATE"; then
+  echo "ПРЕДУПРЕЖДЕНИЕ: В шаблоне Caddyfile отсутствует переменная \$DOMAIN_NAME" >&2
+fi
+
+# Проверка значений переменных
+if [ -z "$USER_EMAIL" ]; then
+  echo "ОШИБКА: Переменная USER_EMAIL пуста. Проверьте передачу параметров." >&2
+  exit 1
+fi
+
+if [ -z "$DOMAIN_NAME" ]; then
+  echo "ОШИБКА: Переменная DOMAIN_NAME пуста. Проверьте передачу параметров." >&2
+  exit 1
+fi
+
 # Use sudo tee to write to /opt/
 ( set -o allexport; source .env; set +o allexport; envsubst < "$CADDY_TEMPLATE" | sudo tee "$CADDY_OUTPUT" > /dev/null )
 if [ $? -ne 0 ]; then
@@ -94,6 +128,29 @@ if [ $? -ne 0 ]; then
   sudo rm -f "$CADDY_OUTPUT" # Удаляем частично созданный файл из /opt/
   exit 1
 fi
+
+# Проверка результата подстановки переменных
+if grep -q "email\s*$" "$CADDY_OUTPUT" || grep -q "email\s*{" "$CADDY_OUTPUT"; then
+  echo "ОШИБКА: Переменная USER_EMAIL не была подставлена в Caddyfile" >&2
+  echo "Содержимое проблемной строки:" >&2
+  grep -n "email" "$CADDY_OUTPUT" >&2
+  exit 1
+fi
+
+# Проверка синтаксиса Caddyfile с использованием Docker
+echo "Проверка синтаксиса Caddyfile..."
+if command -v docker &> /dev/null; then
+  if ! sudo docker run --rm -v "$CADDY_OUTPUT:/etc/caddy/Caddyfile:ro" caddy:2 caddy validate --config /etc/caddy/Caddyfile; then
+    echo "ОШИБКА: Caddyfile содержит синтаксические ошибки. Проверьте файл $CADDY_OUTPUT" >&2
+    echo "Содержимое Caddyfile:" >&2
+    sudo cat "$CADDY_OUTPUT" >&2
+    exit 1
+  fi
+  echo "✅ Синтаксис Caddyfile проверен и корректен"
+else
+  echo "ПРЕДУПРЕЖДЕНИЕ: Docker не доступен, пропускаем проверку синтаксиса Caddyfile" >&2
+fi
+
 echo "✔ $CADDY_OUTPUT успешно создан."
 
 echo "✅ Templates and configuration files successfully created"

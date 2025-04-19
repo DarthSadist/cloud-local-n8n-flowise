@@ -1,7 +1,17 @@
+# Глобальные настройки Caddy
 {
-    email $USER_EMAIL
+    # ВАЖНО: email используется для регистрации в Let's Encrypt
+    # Если переменная $USER_EMAIL не подставляется, скрипт 07-start-services.sh исправит это автоматически
+    email ${USER_EMAIL:-admin@example.com}
+    
+    # Используем официальный ACME-сервер Let's Encrypt для получения сертификатов
     acme_ca https://acme-v02.api.letsencrypt.org/directory
-    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory # Uncomment for testing
+    
+    # Для тестирования можно использовать staging-сервер Let's Encrypt
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory # Раскомментируйте для тестирования
+    
+    # Дополнительные настройки безопасности
+    auto_https on # Автоматически перенаправлять HTTP на HTTPS
 }
 
 # n8n
