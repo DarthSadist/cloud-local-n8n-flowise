@@ -2,7 +2,7 @@
 {
     # ВАЖНО: email используется для регистрации в Let's Encrypt
     # Если переменная $USER_EMAIL не подставляется, скрипт 07-start-services.sh исправит это автоматически
-    email ${USER_EMAIL:-admin@example.com}
+    email $USER_EMAIL
     
     # Используем официальный ACME-сервер Let's Encrypt для получения сертификатов
     acme_ca https://acme-v02.api.letsencrypt.org/directory

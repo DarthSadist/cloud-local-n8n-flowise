@@ -105,8 +105,8 @@ check_and_fix_caddyfile() {
         return 1
     fi
     
-    # Проверка на пустой email
-    if grep -q "email\s*$" "$caddyfile" || grep -q "email\s*{" "$caddyfile"; then
+    # Проверка на пустой email или неправильный формат переменной
+    if grep -q "email\s*$" "$caddyfile" || grep -q "email\s*{" "$caddyfile" || grep -q "email\s*\${USER_EMAIL:-" "$caddyfile"; then
         echo "❌ ОШИБКА: Обнаружена проблема с директивой 'email' в Caddyfile" >&2
         echo "Содержимое проблемной строки:" >&2
         grep -n "email" "$caddyfile" >&2
@@ -122,6 +122,7 @@ check_and_fix_caddyfile() {
             echo "✅ Найден email в .env файле: $USER_EMAIL"
             sudo sed -i "s/email\s*$/email $USER_EMAIL/" "$caddyfile"
             sudo sed -i "s/email\s*{/email $USER_EMAIL {/" "$caddyfile"
+            sudo sed -i "s/email\s*\${USER_EMAIL:-[^}]*}/email $USER_EMAIL/" "$caddyfile"
         else
             echo "❌ Не удалось найти USER_EMAIL в .env файле" >&2
             echo "Введите email для использования в Caddyfile:"
@@ -132,6 +133,7 @@ check_and_fix_caddyfile() {
             fi
             sudo sed -i "s/email\s*$/email $USER_EMAIL/" "$caddyfile"
             sudo sed -i "s/email\s*{/email $USER_EMAIL {/" "$caddyfile"
+            sudo sed -i "s/email\s*\${USER_EMAIL:-[^}]*}/email $USER_EMAIL/" "$caddyfile"
         fi
         
         echo "✅ Caddyfile исправлен. Создана резервная копия в ${caddyfile}.backup"
