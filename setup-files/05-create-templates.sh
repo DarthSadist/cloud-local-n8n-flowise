@@ -126,8 +126,8 @@ fi
 export USER_EMAIL="$USER_EMAIL"
 export DOMAIN_NAME="$DOMAIN_NAME"
 
-# Используем envsubst с явным указанием, какие переменные подставлять
-envsubst '$$USER_EMAIL $$DOMAIN_NAME' < "$CADDY_TEMPLATE" | sudo tee "$CADDY_OUTPUT" > /dev/null
+# Используем envsubst с корректным синтаксисом
+envsubst '${USER_EMAIL} ${DOMAIN_NAME}' < "$CADDY_TEMPLATE" | sudo tee "$CADDY_OUTPUT" > /dev/null
 if [ $? -ne 0 ]; then
   echo "ERROR: Failed to process template '$CADDY_TEMPLATE' with envsubst. Check .env file and template syntax." >&2
   sudo rm -f "$CADDY_OUTPUT" # Удаляем частично созданный файл из /opt/
@@ -135,7 +135,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Проверка результата подстановки переменных
-if grep -q "email\s*$" "$CADDY_OUTPUT" || grep -q "email\s*{" "$CADDY_OUTPUT"; then
+if grep -q "email\s*$" "$CADDY_OUTPUT" || grep -q "email\s*{" "$CADDY_OUTPUT" || grep -q "email\s*\$USER_EMAIL" "$CADDY_OUTPUT"; then
   echo "ОШИБКА: Переменная USER_EMAIL не была подставлена в Caddyfile" >&2
   echo "Содержимое проблемной строки:" >&2
   grep -n "email" "$CADDY_OUTPUT" >&2
