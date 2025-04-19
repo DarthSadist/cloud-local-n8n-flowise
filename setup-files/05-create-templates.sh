@@ -122,7 +122,12 @@ if [ -z "$DOMAIN_NAME" ]; then
 fi
 
 # Use sudo tee to write to /opt/
-( set -o allexport; source .env; set +o allexport; envsubst < "$CADDY_TEMPLATE" | sudo tee "$CADDY_OUTPUT" > /dev/null )
+# Явно экспортируем переменные USER_EMAIL и DOMAIN_NAME
+export USER_EMAIL="$USER_EMAIL"
+export DOMAIN_NAME="$DOMAIN_NAME"
+
+# Используем envsubst с явным указанием, какие переменные подставлять
+envsubst '$$USER_EMAIL $$DOMAIN_NAME' < "$CADDY_TEMPLATE" | sudo tee "$CADDY_OUTPUT" > /dev/null
 if [ $? -ne 0 ]; then
   echo "ERROR: Failed to process template '$CADDY_TEMPLATE' with envsubst. Check .env file and template syntax." >&2
   sudo rm -f "$CADDY_OUTPUT" # Удаляем частично созданный файл из /opt/
