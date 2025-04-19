@@ -1,4 +1,5 @@
 # Сервис Crawl4AI на базе Node.js
+version: '3.8'
 services:
   crawl4ai:
     image: node:18-alpine
