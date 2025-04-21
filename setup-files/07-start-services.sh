@@ -486,6 +486,29 @@ check_service "watchtower"
 check_service "netdata"
 check_service "adminer" # Не критично, но проверяем
 
+# Проверка WordPress и связанных сервисов
+if sudo docker ps | grep -q "wordpress"; then
+  check_service "wordpress"
+  check_service "wordpress_db"
+  # Увеличим счетчик сервисов, если они не были учтены ранее
+  ((total_services++))
+  ((total_services++))
+  
+  # Считаем WordPress только если он успешно запущен
+  if sudo docker ps | grep -q "wordpress"; then
+    ((successful_services++))
+  else
+    ((failed_services++))
+  fi
+  
+  # Считаем базу данных WordPress только если она успешно запущена
+  if sudo docker ps | grep -q "wordpress_db"; then
+    ((successful_services++))
+  else
+    ((failed_services++))
+  fi
+fi
+
 # Проверка, что Caddy слушает нужные порты
 echo "\n- Проверка портов Caddy:"
 if ! sudo ss -tulnp | grep -q 'docker-proxy.*:80' || ! sudo ss -tulnp | grep -q 'docker-proxy.*:443'; then

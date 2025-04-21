@@ -169,6 +169,8 @@ main() {
   echo "Useful commands:"
   echo "  - n8n logs:       sudo docker logs n8n"
   echo "  - Flowise logs:   sudo docker logs flowise"
+  echo "  - WordPress logs: sudo docker logs wordpress"
+  echo "  - WP DB logs:     sudo docker logs wordpress_db"
   echo "  - Caddy logs:     sudo docker logs caddy"
   echo "  - Adminer logs:   sudo docker logs adminer"
   echo "  - Crawl4AI logs:  sudo docker logs crawl4ai"
@@ -181,6 +183,7 @@ main() {
   echo
   echo "n8n is available at: https://n8n.${DOMAIN_NAME}"
   echo "Flowise is available at: https://flowise.${DOMAIN_NAME}"
+  echo "WordPress is available at: https://wordpress.${DOMAIN_NAME}"
   echo "Adminer is available at: https://adminer.${DOMAIN_NAME}"
   echo "Crawl4AI is available at: https://crawl4ai.${DOMAIN_NAME}"
   echo "Netdata is available at: https://netdata.${DOMAIN_NAME}"
