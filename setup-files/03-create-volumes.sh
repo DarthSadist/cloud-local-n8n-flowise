@@ -13,6 +13,8 @@ VOLUMES=(
     "caddy_data"
     "caddy_config"
     "n8n_user_files"    # Added from 03b
+    "wordpress_data"    # For WordPress files
+    "wordpress_db_data" # For WordPress database
 )
 
 FAILED_VOLUMES=0

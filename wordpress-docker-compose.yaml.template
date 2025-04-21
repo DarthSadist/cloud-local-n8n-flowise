@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress
+    restart: unless-stopped
+    environment:
+      - WORDPRESS_DB_HOST=wordpress_db
+      - WORDPRESS_DB_USER=${WP_DB_USER}
+      - WORDPRESS_DB_PASSWORD=${WP_DB_PASSWORD}
+      - WORDPRESS_DB_NAME=${WP_DB_NAME}
+      - WORDPRESS_TABLE_PREFIX=${WP_TABLE_PREFIX}
+      - WORDPRESS_CONFIG_EXTRA=
+        define('WP_MEMORY_LIMIT', '256M');
+        define('WP_MAX_MEMORY_LIMIT', '512M');
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - app-network
+    depends_on:
+      - wordpress_db
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  wordpress_db:
+    image: mariadb:10.6
+    container_name: wordpress_db
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=${WP_DB_NAME}
+      - MYSQL_USER=${WP_DB_USER}
+      - MYSQL_PASSWORD=${WP_DB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${WP_DB_ROOT_PASSWORD}
+    volumes:
+      - wordpress_db_data:/var/lib/mysql
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+volumes:
+  wordpress_data:
+    external: true
+  wordpress_db_data:
+    external: true
+
+networks:
+  app-network:
+    external: true

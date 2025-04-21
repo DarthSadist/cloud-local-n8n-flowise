@@ -44,3 +44,15 @@ crawl4ai.$DOMAIN_NAME {
 netdata.$DOMAIN_NAME {
     reverse_proxy netdata:19999
 }
+
+# WordPress
+wordpress.$DOMAIN_NAME {
+    reverse_proxy wordpress:80
+    header {
+        # Добавление заголовков безопасности
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}

@@ -433,8 +433,28 @@ else
   ((successful_services++))
 fi
 
+# Запуск WordPress
+echo "\n======================="
+echo "⚡ Запуск WordPress..."
+echo "=======================\n"
+
+WP_COMPOSE_FILE="/opt/wordpress-docker-compose.yaml"
+if [ -f "$WP_COMPOSE_FILE" ]; then
+  start_service "$WP_COMPOSE_FILE" "wordpress" "$ENV_FILE"
+  if [ $? -eq 0 ]; then
+    ((successful_services++))
+    ((total_services++))
+  else
+    ((failed_services++))
+    ((total_services++))
+    echo "⚠️ Не удалось запустить WordPress стек, но продолжаем установку..." >&2
+  fi
+else
+  echo "⚠️ Файл $WP_COMPOSE_FILE не найден. Пропускаем запуск WordPress." >&2
+fi
+
 # Ждем инициализацию всех сервисов
-echo "\n\n=========================================="
+echo "\n\n==========================================="
 echo "🕒 Ожидание инициализации всех сервисов..."
 echo "==========================================\n"
 sleep 8

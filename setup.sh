@@ -99,6 +99,11 @@ main() {
   ./setup-files/04-generate-secrets.sh "$USER_EMAIL" "$DOMAIN_NAME" "$GENERIC_TIMEZONE"
   check_success "secret key generation"
   
+  # Step 5b: WordPress Configuration
+  show_progress "Step 5b/8: WordPress Configuration"
+  ./setup-files/04b-setup-wordpress.sh
+  check_success "WordPress configuration"
+  
   # Step 6: Template creation
   show_progress "Step 6/8: Configuration file creation"
   # Pass both DOMAIN_NAME and USER_EMAIL for Caddyfile processing
