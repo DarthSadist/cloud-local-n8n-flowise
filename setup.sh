@@ -164,7 +164,7 @@ main() {
   echo
   echo "All services should now be running."
   echo "Access n8n, Flowise, Adminer, Crawl4AI, and Netdata using the details above."
-  echo "Qdrant is internal. Watchtower runs in the background."
+  echo "Watchtower runs in the background."
   echo
   echo "Useful commands:"
   echo "  - n8n logs:       sudo docker logs n8n"
@@ -187,6 +187,7 @@ main() {
   echo "Adminer is available at: https://adminer.${DOMAIN_NAME}"
   echo "Crawl4AI is available at: https://crawl4ai.${DOMAIN_NAME}"
   echo "Netdata is available at: https://netdata.${DOMAIN_NAME}"
+  echo "Qdrant Dashboard is available at: https://qdrant.${DOMAIN_NAME}/dashboard/"
   echo ""
   echo "Login credentials for n8n:"
   echo "Email: ${USER_EMAIL}"
@@ -195,6 +196,17 @@ main() {
   echo "Login credentials for Flowise:"
   echo "Username: admin"
   echo "Password: ${FLOWISE_PASSWORD}"
+
+  # Получаем API-ключ Qdrant из файла паролей или .env
+  QDRANT_API_KEY=""
+  if [ -f "$PASSWORDS_FILE" ]; then
+    QDRANT_API_KEY=$(grep '^QDRANT_API_KEY=' "$PASSWORDS_FILE" | cut -d'=' -f2)
+  fi
+  if [ -z "$QDRANT_API_KEY" ] && [ -f "/opt/.env" ]; then
+    QDRANT_API_KEY=$(grep '^QDRANT_API_KEY=' "/opt/.env" | cut -d'=' -f2)
+  fi
+  echo "Qdrant API Key (required for Dashboard access):"
+  echo "$QDRANT_API_KEY"
   echo ""
   echo "Please note that for the domain name to work, you need to configure DNS records"
   echo "pointing to the IP address of this server."
