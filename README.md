@@ -76,14 +76,290 @@
 - [Документация pgvector](https://github.com/pgvector/pgvector/blob/master/README.md)
 
 ### Crawl4AI
-[Crawl4AI](https://github.com/unclecode/crawl4ai) - это веб-сервис для сбора данных из различных источников для AI-приложений:
-- API для получения и обработки данных из веб-источников
+Crawl4AI - это веб-сервис, предназначенный для сбора данных из различных источников для AI-приложений. В текущей конфигурации он представлен как базовый API-эндпоинт, который может использоваться как отправная точка для интеграций:
+
+- Простой API-эндпоинт с информацией о статусе сервиса
 - Защита доступа с помощью JWT-аутентификации
-- Возможность расширения и настройки для конкретных задач сбора данных
-- Управление очередями заданий для масштабного скрапинга
-- Интегрируется с n8n и Flowise для автоматизированного сбора и обработки данных
-- Возможность планирования задач по расписанию
-- Соблюдение рекомендаций robots.txt для этичного скрапинга
+- Интеграция с общей сетью Docker для взаимодействия с другими сервисами
+- Возможность расширения функциональности через n8n и Flowise
+- Легковесная конфигурация с минимальным потреблением ресурсов
+
+#### Практическое применение Crawl4AI в текущей конфигурации
+
+Несмотря на минимальную реализацию, Crawl4AI может быть эффективно использован в различных сценариях:
+
+##### 1. Мониторинг состояния стека в n8n
+
+```javascript
+// Пример рабочего процесса n8n для мониторинга сервисов
+// В узле Function используйте этот код:
+async function checkServices() {
+  const services = [
+    { name: 'Crawl4AI', url: 'https://crawl4ai.ваш-домен.com/' },
+    { name: 'n8n', url: 'https://n8n.ваш-домен.com/healthz' },
+    { name: 'Flowise', url: 'https://flowise.ваш-домен.com/api/health' }
+  ];
+  
+  const results = [];
+  for (const service of services) {
+    try {
+      const response = await $http.request({ url: service.url, method: 'GET' });
+      const statusOk = response.statusCode === 200;
+      results.push({
+        service: service.name,
+        status: statusOk ? 'online' : 'offline',
+        details: response.data
+      });
+    } catch (error) {
+      results.push({
+        service: service.name,
+        status: 'error',
+        details: error.message
+      });
+    }
+  }
+  return { serviceStatus: results };
+}
+
+return await checkServices();
+```
+
+##### 2. Использование как базового API в Flowise
+
+Вы можете интегрировать Crawl4AI с Flowise для создания более сложных AI-приложений:
+
+```javascript
+// Код для JavaScript-узла в Flowise:
+async function fetchServiceStatus() {
+  const response = await fetch('https://crawl4ai.ваш-домен.com/');
+  const data = await response.json();
+  
+  // Проверяем, работает ли сервис
+  if (data.status === 'ok') {
+    // Здесь можно добавить собственную логику скрапинга
+    // или использовать другие интеграции
+    return {
+      systemStatus: 'Все системы работают нормально',
+      crawl4aiVersion: data.version,
+      timestamp: new Date().toISOString()
+    };
+  } else {
+    return {
+      systemStatus: 'Обнаружена проблема в работе сервиса',
+      error: 'Crawl4AI не отвечает должным образом'
+    };
+  }
+}
+
+return await fetchServiceStatus();
+```
+
+##### 3. Создание агрегатора данных с использованием n8n
+
+Используйте n8n для сбора данных, а Crawl4AI как точку интеграции:
+
+```bash
+# Пример команды для запуска рабочего процесса n8n через CLI:
+n8n execute --workflow "Web Scraper" --destinationUrl "https://crawl4ai.ваш-домен.com/" --authToken "${CRAWL4AI_JWT_SECRET}"
+```
+
+##### 4. Расширение через монтирование собственного кода
+
+Вы можете расширить функциональность Crawl4AI, добавив собственный код в контейнер:
+
+```yaml
+# Пример модификации crawl4ai-docker-compose.yaml:
+services:
+  crawl4ai:
+    # ... существующие настройки
+    volumes:
+      - ./custom-scripts:/app/scripts
+    command: ["/bin/sh", "-c", "cd /app && npm install express axios cheerio && node /app/scripts/server.js"]
+```
+
+```javascript
+// Пример server.js для расширенной функциональности:
+const express = require('express');
+const app = express();
+
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', service: 'crawl4ai', version: '1.0' });
+});
+
+app.get('/api/scrape', (req, res) => {
+  // Здесь можно добавить логику веб-скрапинга
+  res.json({ message: 'Endpoint для скрапинга' });
+});
+
+app.listen(8000, () => {
+  console.log('Crawl4AI API запущен на порту 8000');
+});
+```
+
+##### 5. Работа с внешними источниками данных
+
+Ниже приведены примеры использования Crawl4AI с n8n и Flowise для работы с внешними источниками данных:
+
+###### a) Сбор данных с новостных сайтов (n8n)
+
+```javascript
+// Пример рабочего процесса n8n для сбора новостей
+// В узле HTTP Request:
+// URL: https://example-news-site.com
+// Далее в узле HTML Extract:
+// Селектор: article .headline
+// Затем в узле Function:
+
+// Форматирование результатов
+const formatted = {
+  source: 'example-news-site',
+  timestamp: new Date().toISOString(),
+  headlines: $input.item.extracted || []
+};
+
+// Отправка данных в Crawl4AI (для сохранения в журнале или обработки)
+return {
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + process.env.CRAWL4AI_JWT_SECRET
+  },
+  url: 'https://crawl4ai.ваш-домен.com/',
+  method: 'POST',
+  body: formatted
+};
+```
+
+###### b) Мониторинг RSS-каналов (n8n)
+
+```javascript
+// В n8n создайте следующий рабочий процесс:
+// 1. Триггер Schedule: каждый час
+// 2. Узел RSS Read Feed: настройте URL вашего RSS-канала
+// 3. Узел Function (код ниже):
+
+function processFeed(items) {
+  if (!Array.isArray(items) || items.length === 0) return [];
+  
+  return items.map(item => ({
+    title: item.title,
+    link: item.link,
+    published: item.pubDate || item.published,
+    content: item.content || item.description,
+    source: new URL(item.link).hostname,
+    collected: new Date().toISOString()
+  }));
+}
+
+const processedItems = processFeed($input.all[0].json.items);
+
+// Отправка данных в Qdrant через Crawl4AI
+const payload = {
+  operation: 'store_rss',
+  data: processedItems,
+  metadata: {
+    source_type: 'rss',
+    total_items: processedItems.length
+  }
+};
+
+return { json: payload };
+
+// 4. Узел HTTP Request для отправки данных в Crawl4AI
+```
+
+###### c) Интеграция с API внешних сервисов (Flowise)
+
+```javascript
+// Код для JavaScript-узла в Flowise
+async function fetchWeatherData() {
+  // Запрос к публичному API погоды
+  const response = await fetch('https://api.weatherapi.com/v1/current.json?key=YOUR_API_KEY&q=Moscow');
+  const weatherData = await response.json();
+  
+  // Форматируем данные
+  const formattedData = {
+    location: weatherData.location.name,
+    country: weatherData.location.country,
+    temperature: weatherData.current.temp_c,
+    condition: weatherData.current.condition.text,
+    timestamp: new Date().toISOString()
+  };
+  
+  // Отправляем данные в Crawl4AI для кэширования/хранения
+  try {
+    await fetch('https://crawl4ai.ваш-домен.com/api/data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + process.env.CRAWL4AI_JWT_SECRET
+      },
+      body: JSON.stringify({
+        source: 'weather_api',
+        data: formattedData
+      })
+    });
+    
+    return formattedData;
+  } catch (error) {
+    console.error('Failed to store data in Crawl4AI:', error);
+    return formattedData; // Возвращаем данные все равно
+  }
+}
+
+return await fetchWeatherData();
+```
+
+###### d) Сбор данных с GitHub и интеграция с Qdrant
+
+```javascript
+// Пример для n8n, работающего с GitHub API и интегрирующего с Qdrant
+// В Function ноде:
+
+async function fetchGitHubRepos() {
+  // Запрос к GitHub API
+  const response = await $http.request({
+    url: 'https://api.github.com/users/YOUR_USERNAME/repos',
+    method: 'GET',
+    headers: {
+      'User-Agent': 'n8n-crawl4ai-integration'
+    }
+  });
+  
+  // Обрабатываем данные о репозиториях
+  const repos = response.data.map(repo => ({
+    name: repo.name,
+    description: repo.description || '',
+    url: repo.html_url,
+    stars: repo.stargazers_count,
+    language: repo.language,
+    created_at: repo.created_at,
+    updated_at: repo.updated_at
+  }));
+  
+  // Формируем данные для отправки в Crawl4AI
+  return {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + process.env.CRAWL4AI_JWT_SECRET
+    },
+    url: 'https://crawl4ai.ваш-домен.com/api/github-data',
+    method: 'POST',
+    body: JSON.stringify({
+      source: 'github_api',
+      data: repos,
+      timestamp: new Date().toISOString(),
+      // Параметры для сохранения в Qdrant через прокси Crawl4AI
+      qdrant: {
+        collection_name: 'github_repos',
+        vector_dimension: 384,  // Размерность вектора, зависит от модели эмбеддингов
+        embed_field: 'description'  // Поле, которое будет использовано для создания эмбеддингов
+      }
+    })
+  };
+}
+
+return await fetchGitHubRepos();
+```
 
 ### Adminer
 [Adminer](https://www.adminer.org/) - легковесный инструмент для управления базами данных через веб-интерфейс:
