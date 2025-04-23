@@ -6,7 +6,7 @@
 
 - **n8n** - платформа автоматизации рабочих процессов с низкокодовым интерфейсом
   - Настроена для использования PostgreSQL для постоянного хранения данных
-  - Включает Redis для очередей и кеширования
+  - Включает Redis для организации очередей и кеширования
 - **Flowise** - интерфейс для создания LLM-приложений и чат-цепочек
 - **Qdrant** - векторная база данных для хранения и поиска эмбеддингов
   - Защищен API-ключом для безопасного доступа
@@ -74,6 +74,464 @@
 - Масштабируемость и высокая производительность
 - Совместимость с многочисленными инструментами для анализа и визуализации данных
 - [Документация pgvector](https://github.com/pgvector/pgvector/blob/master/README.md)
+
+### Redis
+[Redis](https://redis.io/docs/) - это высокопроизводительное хранилище данных в памяти, используемое как база данных, кэш и брокер сообщений:
+
+- Хранение данных в ОЗУ для молниеносного доступа к информации
+- Интеграция с n8n для обработки очередей и кеширования результатов выполнения рабочих процессов
+- Поддержка различных структур данных: строки, хеши, списки, множества, упорядоченные множества
+- Возможность эффективной организации очередей задач и управления распределенными блокировками
+- Хранение сессий и временных данных между запусками рабочих процессов
+
+#### Роль Redis в стеке сервисов
+
+1. **Кеширование для n8n**:
+   - Хранение промежуточных результатов выполнения рабочих процессов
+   - Кеширование часто запрашиваемых данных для снижения нагрузки на внешние API
+   - Хранение состояния выполнения длительных операций
+
+2. **Управление очередями**:
+   - Организация очередей выполнения для асинхронных рабочих процессов
+   - Распределение нагрузки между исполнителями при масштабировании n8n
+   - Предотвращение перегрузки системы при пиковой нагрузке
+
+3. **Межсервисное взаимодействие**:
+   - Обмен данными между n8n и другими сервисами стека
+   - Быстрая передача сообщений между компонентами системы
+   - Синхронизация состояний разных сервисов
+
+#### Основные команды для работы с Redis
+
+```bash
+# Подключение к Redis из командной строки
+sudo docker exec -it redis redis-cli
+
+# Основные команды для диагностики
+PING                  # Проверка соединения (должен вернуть PONG)
+INFO                  # Общая информация о Redis-сервере
+INFO memory           # Информация об использовании памяти
+INFO clients          # Информация о подключенных клиентах
+INFO stats            # Статистика использования
+
+# Просмотр и работа с данными
+KEYS *                # Получить список всех ключей (не рекомендуется в production)
+SCAN 0                # Безопасный способ итерации по ключам
+GET ключ              # Получить значение ключа
+SET ключ значение     # Установить значение ключа
+DEL ключ              # Удалить ключ
+TTL ключ              # Проверить время жизни ключа (в секундах)
+EXPIRE ключ 3600      # Установить время жизни ключа (3600 секунд)
+```
+
+#### Мониторинг и обслуживание Redis
+
+1. **Мониторинг в Netdata**:
+   - В панели Netdata перейдите в раздел "Applications" → "Redis"
+   - Ключевые метрики: использование памяти, количество операций в секунду, хиты/промахи кеша
+   - Настройте оповещения для критичных порогов (например, использование >80% выделенной памяти)
+
+2. **Очистка кеша при необходимости**:
+   ```bash
+   # Подключение к Redis
+   sudo docker exec -it redis redis-cli
+   
+   # Очистка всех данных (аккуратно в production!)
+   FLUSHALL
+   
+   # Очистка данных только в текущей БД
+   FLUSHDB
+   
+   # Очистка данных по определенному паттерну
+   # Например, удалить все ключи с префиксом 'cache:'
+   eval "return redis.call('del', unpack(redis.call('keys', ARGV[1])))" 0 cache:*
+   ```
+
+3. **Проверка логов Redis**:
+   ```bash
+   sudo docker logs redis
+   ```
+
+#### Настройка и оптимизация Redis
+
+В текущей конфигурации Redis настроен оптимально для большинства сценариев использования. Однако при необходимости вы можете изменить настройки, отредактировав файл `/opt/redis.conf` или переменные окружения в `/opt/.env`:
+
+```bash
+# Пример настройки максимального объема памяти и политики вытеснения
+# Добавьте эти строки в redis.conf или соответствующие переменные в .env
+maxmemory 256mb
+maxmemory-policy allkeys-lru   # Вытеснять наименее использовавшиеся ключи
+```
+
+#### Типичные сценарии использования Redis в n8n
+
+1. **Кеширование данных API**:
+   ```javascript
+   // Пример кода для узла Function в n8n
+   async function getDataWithCaching() {
+     const cacheKey = 'cache:data:' + $input.item.id;
+     
+     // Попытка получить данные из кеша Redis
+     const cachedData = await $redis.get(cacheKey);
+     if (cachedData) {
+       return JSON.parse(cachedData);
+     }
+     
+     // Если данных нет в кеше, выполняем API-запрос
+     const response = await $http.request({
+       url: 'https://api.example.com/data/' + $input.item.id,
+       method: 'GET'
+     });
+     
+     // Сохраняем результат в кеш на 1 час
+     await $redis.set(cacheKey, JSON.stringify(response.data));
+     await $redis.expire(cacheKey, 3600);
+     
+     return response.data;
+   }
+   
+   return await getDataWithCaching();
+   ```
+
+2. **Распределенные блокировки для предотвращения одновременного запуска**:
+   ```javascript
+   // Пример кода для предотвращения одновременного запуска рабочего процесса
+   async function executeWithLock() {
+     const lockKey = 'lock:process:daily-report';
+     const lockValue = Date.now().toString();
+     const lockTTL = 600; // 10 минут
+     
+     // Пытаемся получить блокировку
+     const acquired = await $redis.set(lockKey, lockValue, 'NX', 'EX', lockTTL);
+     
+     if (!acquired) {
+       return { success: false, message: 'Процесс уже выполняется' };
+     }
+     
+     try {
+       // Выполняем основную логику рабочего процесса
+       // ...
+       
+       return { success: true, message: 'Процесс успешно выполнен' };
+     } finally {
+       // Освобождаем блокировку только если мы ее владельцы
+       const currentValue = await $redis.get(lockKey);
+       if (currentValue === lockValue) {
+         await $redis.del(lockKey);
+       }
+     }
+   }
+   
+   return await executeWithLock();
+   ```
+
+3. **Очередь заданий для распределения нагрузки**:
+   ```javascript
+   // В рабочем процессе-продюсере (создающем задачи)
+   async function enqueueTask() {
+     const task = {
+       id: uuid(), // Уникальный идентификатор задачи
+       type: 'data-processing',
+       data: $input.item.json,
+       created: Date.now()
+     };
+     
+     // Добавляем задачу в очередь Redis
+     await $redis.rpush('queue:data-processing', JSON.stringify(task));
+     
+     return { success: true, taskId: task.id };
+   }
+   
+   // В рабочем процессе-потребителе (выполняющем задачи)
+   async function processTaskFromQueue() {
+     // Извлекаем задачу из очереди (блокирующая операция с таймаутом 5 секунд)
+     const taskData = await $redis.blpop('queue:data-processing', 5);
+     
+     if (!taskData) {
+       return { success: true, message: 'Нет задач в очереди' };
+     }
+     
+     const task = JSON.parse(taskData[1]);
+     
+     try {
+       // Выполняем обработку задачи
+       // ...
+       
+       // Отмечаем задачу как выполненную
+       await $redis.hset('tasks:completed', task.id, JSON.stringify({
+         status: 'completed',
+         completedAt: Date.now()
+       }));
+       
+       return { success: true, taskId: task.id };
+     } catch (error) {
+       // В случае ошибки возвращаем задачу в очередь
+       await $redis.rpush('queue:data-processing', JSON.stringify(task));
+       return { success: false, error: error.message };
+     }
+   }
+   ```
+
+Вы также можете интегрировать Redis с Flowise и другими сервисами стека для создания высокопроизводительных и отказоустойчивых решений. Redis особенно полезен для кеширования векторных запросов к Qdrant и результатов обработки данных в AI-приложениях.
+
+#### Детальные примеры использования Redis в стеке
+
+##### Пример 1: Мониторинг состояния сервисов с помощью n8n и Redis
+
+Если вы хотите создать систему мониторинга для вашего стека сервисов, вы можете использовать Redis в качестве хранилища данных о состоянии и уведомлений:
+
+```javascript
+// Создайте рабочий процесс в n8n с триггером по расписанию (Schedule Trigger):
+// - Добавьте ноду HTTP Request для проверки каждого сервиса
+// - Затем добавьте Function ноду для обработки результатов:
+
+// Пример кода для Function ноды:
+async function monitorServices() {
+  // Получение статуса от предыдущего узла HTTP Request
+  const currentStatus = $input.item.json;
+  const serviceName = currentStatus.service;
+  const isUp = currentStatus.status === 'online';
+  const timestamp = new Date().toISOString();
+  
+  // Получаем предыдущий статус из Redis
+  const previousStateKey = `service:${serviceName}:status`;
+  const previousState = await $redis.get(previousStateKey);
+  
+  // Сохраняем текущий статус в Redis
+  await $redis.set(previousStateKey, isUp ? 'up' : 'down');
+  
+  // Сохраняем историю статусов в списке Redis (храним последние 100 записей)
+  const historyKey = `service:${serviceName}:history`;
+  await $redis.lpush(historyKey, JSON.stringify({
+    timestamp,
+    status: isUp ? 'up' : 'down',
+    responseTime: currentStatus.responseTime || 0
+  }));
+  await $redis.ltrim(historyKey, 0, 99);  // Сохраняем только последние 100 записей
+  
+  // Обнаружение изменения статуса (для уведомлений)
+  let statusChanged = false;
+  if (previousState && (previousState === 'up') !== isUp) {
+    statusChanged = true;
+    
+    // Добавляем событие в очередь уведомлений
+    await $redis.rpush('notifications:queue', JSON.stringify({
+      type: 'service_status_change',
+      service: serviceName,
+      status: isUp ? 'up' : 'down',
+      previousStatus: previousState,
+      timestamp
+    }));
+  }
+  
+  return {
+    service: serviceName,
+    status: isUp ? 'up' : 'down',
+    statusChanged,
+    lastChecked: timestamp
+  };
+}
+
+return await monitorServices();
+```
+
+В этом примере Redis используется для:
+
+1. Хранения текущего статуса сервисов
+2. Сохранения истории статусов для анализа
+3. Создания очереди уведомлений
+
+Чтобы обрабатывать уведомления из очереди, создайте другой рабочий процесс, который будет периодически проверять очередь и отправлять уведомления по email или в мессенджеры.
+
+##### Пример 2: Кеширование векторных запросов Qdrant в Flowise
+
+При работе с Qdrant для векторного поиска можно использовать Redis для кеширования результатов семантического поиска. Это уменьшает нагрузку на векторную базу данных и ускоряет получение результатов для повторяющихся запросов:
+
+```javascript
+// Пример кода для JavaScript-узла в Flowise для кеширования векторных запросов
+
+const axios = require('axios');
+const crypto = require('crypto');
+const Redis = require('ioredis');
+
+// В n8n и Flowise клиент Redis уже доступен через встроенный объект $redis
+// При использовании в отдельном скрипте:
+const redis = new Redis({
+  host: 'redis',  // Имя сервиса Redis в Docker-сети
+  port: 6379
+});
+
+// Функция для семантического поиска с кешированием
+async function semanticSearchWithCache(query, collectionName, limit = 5) {
+  // Создаем хеш запроса для уникального ключа кеша
+  const queryHash = crypto.createHash('md5').update(query + collectionName + limit).digest('hex');
+  const cacheKey = `qdrant:search:${queryHash}`;
+  
+  // Проверяем наличие результатов в кеше
+  const cachedResults = await redis.get(cacheKey);
+  if (cachedResults) {
+    console.log('Cache hit for query:', query);
+    return JSON.parse(cachedResults);
+  }
+  
+  // Если в кеше нет, выполняем запрос к Qdrant
+  try {
+    console.log('Cache miss for query:', query);
+    
+    // Первый шаг: получаем вектор эмбеддинга для запроса
+    const embeddingResponse = await axios.post('https://api.openai.com/v1/embeddings', {
+      input: query,
+      model: 'text-embedding-3-small',
+    }, {
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    const embedding = embeddingResponse.data.data[0].embedding;
+    
+    // Второй шаг: запрос к Qdrant для поиска схожих векторов
+    const searchResponse = await axios.post(`https://qdrant.ваш-домен.com/collections/${collectionName}/points/search`, {
+      vector: embedding,
+      limit: limit,
+      with_payload: true,
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': process.env.QDRANT_API_KEY,
+      },
+    });
+    
+    const results = searchResponse.data.result;
+    
+    // Сохраняем результаты в кеше на 30 минут
+    await redis.set(cacheKey, JSON.stringify(results), 'EX', 1800);
+    
+    return results;
+  } catch (error) {
+    console.error('Error during semantic search:', error);
+    throw error;
+  }
+}
+
+// Пример использования функции
+async function main() {
+  const userQuery = inputs.question || "What are the benefits of vector databases?";
+  const collection = inputs.collection || "knowledge_base";
+  
+  try {
+    const searchResults = await semanticSearchWithCache(userQuery, collection);
+    
+    // Форматируем и возвращаем результаты
+    return {
+      results: searchResults.map(result => ({
+        content: result.payload.text,
+        metadata: result.payload.metadata,
+        score: result.score,
+      })),
+      query: userQuery,
+      source: `Qdrant: ${collection}`
+    };
+  } catch (error) {
+    return { error: error.message };
+  }
+}
+
+return await main();
+```
+
+Этот код демонстрирует следующие важные моменты использования Redis с Qdrant:
+
+1. **Хеширование запросов**: Создание уникальных ключей на основе содержимого запроса
+2. **Снижение нагрузки на API**: Экономия на запросах к модели эмбеддингов и Qdrant API
+3. **Временное хранение данных**: Установка TTL (время жизни) для кешированных результатов
+
+Этот подход особенно эффективен в сценариях, где пользователи часто задают похожие вопросы или ищут схожую информацию, что позволяет значительно снизить латентность и стоимость API-запросов.
+
+##### Пример 3: Распределенная координация задач в n8n
+
+Если вы запускаете несколько экземпляров n8n для масштабирования или высокой доступности, Redis может использоваться для координации задач между узлами:
+
+```javascript
+// Код для рабочего процесса распределения задач
+
+async function processDataBatch() {
+  // Уникальный ID для этого узла n8n 
+  // В n8n можно получить его из переменных окружения
+  const workerId = process.env.N8N_HOST || 'worker1';
+  
+  // Взять задачу из очереди (не блокирующий вызов)
+  // Используем rpop для извлечения задачи с конца очереди (FIFO)
+  const task = await $redis.rpop('tasks:pending');
+  if (!task) {
+    return { status: 'no_tasks' };
+  }
+  
+  try {
+    const taskData = JSON.parse(task);
+    
+    // Отметить задачу как в процессе обработки с указанием узла
+    await $redis.hset('tasks:processing', taskData.id, JSON.stringify({
+      worker: workerId,
+      startTime: Date.now(),
+      data: taskData
+    }));
+    
+    // Обработка задачи (здесь ваша специфическая логика)
+    const result = await processTask(taskData);
+    
+    // Отметить задачу как завершенную
+    await $redis.hdel('tasks:processing', taskData.id);
+    await $redis.hset('tasks:completed', taskData.id, JSON.stringify({
+      worker: workerId,
+      completionTime: Date.now(),
+      result: result
+    }));
+    
+    return { status: 'completed', taskId: taskData.id, result };
+  } catch (error) {
+    // В случае ошибки вернуть задачу в очередь
+    // Используем lpush для возврата задачи в начало очереди в случае ошибки
+    if (task) {
+      await $redis.lpush('tasks:pending', task);
+    }
+    return { status: 'error', error: error.message };
+  }
+}
+
+// Дополнительный код для периодической проверки зависших задач:
+
+async function checkStaleTasks() {
+  const now = Date.now();
+  const staleTimeout = 10 * 60 * 1000; // 10 минут в миллисекундах
+  
+  // Получить все задачи в обработке
+  const processingTasks = await $redis.hgetall('tasks:processing');
+  
+  let recoveredCount = 0;
+  for (const [taskId, taskDataStr] of Object.entries(processingTasks)) {
+    const taskData = JSON.parse(taskDataStr);
+    
+    // Если задача висит слишком долго, вернуть её в очередь
+    if (now - taskData.startTime > staleTimeout) {
+      await $redis.hdel('tasks:processing', taskId);
+      await $redis.lpush('tasks:pending', JSON.stringify(taskData.data));
+      recoveredCount++;
+    }
+  }
+  
+  return { recoveredTasks: recoveredCount };
+}
+```
+
+Этот пример демонстрирует ключевые преимущества использования Redis для координации задач:
+
+1. **Распределение нагрузки**: Задачи равномерно распределяются между рабочими узлами
+2. **Отказоустойчивость**: Задачи автоматически возвращаются в очередь при сбоях
+3. **Мониторинг прогресса**: Отслеживание статуса выполнения задач в реальном времени
+
+Такой подход особенно полезен при масштабировании n8n, когда у вас есть много параллельных задач или вы хотите обеспечить высокую доступность и отказоустойчивость ваших процессов автоматизации.
 
 ### Crawl4AI
 Crawl4AI - это веб-сервис, предназначенный для сбора данных из различных источников для AI-приложений. В текущей конфигурации он представлен как базовый API-эндпоинт, который может использоваться как отправная точка для интеграций:
@@ -409,16 +867,188 @@ return await fetchGitHubRepos();
 - [WordPress руководство пользователя](https://wordpress.org/support/)
 
 ### Netdata
-[Netdata](https://learn.netdata.cloud/docs/) - система мониторинга производительности в реальном времени:
+
+[Netdata](https://learn.netdata.cloud/docs/) - мощная система мониторинга производительности в реальном времени, предоставляющая детальную визуализацию ресурсов вашего сервера и контейнеров:
+
 - Отслеживает тысячи метрик системы, приложений и контейнеров с секундной гранулярностью
 - Предоставляет интерактивные дашборды с графиками производительности в реальном времени
 - Автоматически определяет аномалии и потенциальные проблемы
 - Имеет крайне низкие накладные расходы на мониторинг (менее 1% CPU)
 - Не требует сложной настройки — работает "из коробки"
-- Отслеживает состояние Docker-контейнеров и их ресурсов
-- Поддерживает предупреждения и уведомления о проблемах
-- Возможность экспорта метрик в другие системы мониторинга
-- [Руководство по мониторингу Docker](https://learn.netdata.cloud/docs/agent/packaging/docker)
+
+#### Руководство по использованию Netdata
+
+##### Доступ к интерфейсу Netdata
+
+Веб-интерфейс Netdata доступен по адресу:
+```
+https://netdata.ваш-домен.com
+```
+
+Для входа не требуется аутентификация. Если вы хотите ограничить доступ, рекомендуется настроить базовую аутентификацию через Caddy.
+
+##### Основы навигации по интерфейсу
+
+1. **Главная панель (Dashboard)**
+   - После входа вы увидите основную панель с ключевыми метриками в реальном времени
+   - В верхней части экрана находится меню с разделами и временная шкала
+   - Графики автоматически обновляются каждую секунду
+
+2. **Структура данных**
+   - Метрики организованы в секции и подсекции
+   - Слева расположено навигационное меню для быстрого перехода к различным категориям метрик
+
+3. **Элементы управления графиками**
+   - Наведите курсор на график для получения точных значений в конкретный момент времени
+   - Используйте колесо мыши для масштабирования
+   - Щелкните и перетащите для выделения конкретного временного интервала
+   - Кнопка "Reset" возвращает масштаб к значениям по умолчанию
+
+##### Мониторинг ключевых ресурсов
+
+###### Система
+- **CPU**: Отслеживание загрузки процессора всей системы и по ядрам
+  - Обратите внимание на длительные периоды высокой загрузки (>80%)
+  - Проверьте метрики iowait - высокие значения указывают на проблемы с диском
+
+- **Память**: Использование RAM и swap
+  - Контролируйте доступную память - низкие значения могут привести к деградации производительности
+  - Если используется swap при наличии свободной RAM, проверьте настройки swappiness
+
+- **Диск**: I/O операции, использование места и производительность
+  - Следите за свободным местом на диске - критический порог <10%
+  - Высокая загрузка диска может указывать на необходимость оптимизации приложений
+
+- **Сеть**: Входящий/исходящий трафик, состояние соединений
+  - Анализируйте пики трафика и корреляцию с нагрузкой на систему
+  - Проверяйте количество установленных соединений
+
+###### Docker-контейнеры
+
+Netdata автоматически отслеживает все контейнеры в вашем стеке:
+
+1. **Общий мониторинг контейнеров**
+   - Перейдите в раздел "Containers" или "cgroups" в левом меню навигации для просмотра общей статистики
+   - Сравнивайте использование ресурсов между контейнерами
+
+2. **Мониторинг отдельных сервисов**
+   - **n8n**: Отслеживайте использование CPU и RAM
+     - Потребление ресурсов увеличивается при выполнении сложных рабочих процессов
+     - Рекомендуемое использование CPU: `<60%` в среднем
+
+   - **PostgreSQL**: Следите за метриками базы данных
+     - Ключевые показатели: количество соединений, операции чтения/записи
+     - При большом количестве медленных запросов рассмотрите возможность оптимизации
+
+   - **Flowise**: Наблюдайте за поведением при выполнении AI-задач
+     - Использование RAM может значительно возрастать при обработке больших документов
+     - Потребление CPU увеличивается при параллельном выполнении нескольких задач
+
+   - **Qdrant**: Контролируйте производительность векторной базы данных
+     - Высокая загрузка CPU указывает на интенсивные векторные вычисления
+     - Рост использования RAM связан с увеличением размера индекса
+
+   - **WordPress**: Отслеживайте производительность CMS
+     - Важны метрики PHP-FPM и MariaDB
+     - Пики загрузки могут указывать на проблемы с плагинами или темой
+
+##### Настройка оповещений
+
+Netdata имеет встроенную систему оповещений:
+
+1. **Просмотр активных оповещений**
+   - Нажмите на колокольчик в правом верхнем углу для просмотра текущих предупреждений
+   - Цветовая кодировка указывает на уровень критичности
+
+2. **Настройка порогов оповещений**
+   - Для изменения порогов нужно отредактировать файлы в директории `/etc/netdata/health.d/`
+   - Настройки уведомлений задаются в файле `/etc/netdata/health_alarm_notify.conf`
+
+3. **Настройка уведомлений по email**
+   ```bash
+   sudo docker exec -it netdata bash
+   
+   # В контейнере создайте/отредактируйте файл
+   nano /etc/netdata/health_alarm_notify.conf
+   
+   # Добавьте следующие строки:
+   SEND_EMAIL="YES"
+   DEFAULT_RECIPIENT_EMAIL="your-email@example.com"
+   
+   # Сохраните файл: Ctrl+O, Enter, Ctrl+X
+   ```
+
+##### Расширенные функции
+
+1. **Анализ производительности**
+   - Используйте функцию "Metrics Correlations" для выявления взаимосвязей между метриками
+   - Найдите корреляции при возникновении проблем для выявления первопричины
+
+2. **Экспорт данных**
+   - Экспортируйте данные для дальнейшего анализа, нажав на иконку загрузки на графике
+   - Поддерживаются форматы CSV, JSON и другие
+
+3. **Интеграция с n8n**
+   - Создайте рабочий процесс в n8n для мониторинга критических метрик (добавьте узел HTTP Request и Function):
+     ```javascript
+     // Пример кода для узла Function в n8n
+     async function checkNetdataMetrics() {
+       const response = await $http.request({
+         url: 'https://netdata.ваш-домен.com/api/v1/data?chart=system.cpu&format=json&points=1',
+         method: 'GET'
+       });
+       
+       const cpuUsage = response.data.data[0][1];
+       
+       if (cpuUsage > 80) {
+         return {
+           alert: true,
+           message: `Высокая загрузка CPU: ${cpuUsage}%`,
+           timestamp: new Date().toISOString()
+         };
+       }
+       
+       return { alert: false, cpuUsage };
+     }
+     
+     return await checkNetdataMetrics();
+     ```
+
+##### Устранение неполадок
+
+1. **Если графики не обновляются**
+   - Перезапустите контейнер Netdata:
+     ```bash
+     sudo docker compose -f /opt/netdata-docker-compose.yaml --env-file /opt/.env restart
+     ```
+   - Проверьте логи для выявления проблем:
+     ```bash
+     sudo docker logs netdata
+     ```
+
+2. **Высокая нагрузка самого Netdata**
+   - Уменьшите частоту обновления, изменив параметр `update_every` в файле `/etc/netdata/netdata.conf` (например, значение 5 будет обновлять данные каждые 5 секунд вместо 1)
+   - Отключите ненужные коллекторы данных для снижения нагрузки
+
+3. **Очистка исторических данных**
+   - По умолчанию Netdata хранит данные в памяти
+   - Для очистки базы данных перезапустите контейнер
+
+##### Рекомендации по мониторингу
+
+1. **Ежедневные проверки**
+   - Проверяйте общую загрузку системы (CPU, RAM, диск)
+   - Отслеживайте активные предупреждения и тенденции использования ресурсов
+
+2. **Еженедельный анализ**
+   - Анализируйте производительность отдельных контейнеров
+   - Ищите паттерны и аномалии в использовании ресурсов
+
+3. **Действия при высокой нагрузке**
+   - Определите процессы, потребляющие больше всего ресурсов
+   - Рассмотрите возможность масштабирования ресурсов или оптимизации приложений
+
+Netdata предоставляет исчерпывающую информацию о вашей системе, позволяя оперативно выявлять и устранять проблемы производительности.
 
 ## Системные требования
 
@@ -549,7 +1179,7 @@ sudo docker compose -f /opt/crawl4ai-docker-compose.yaml --env-file /opt/.env re
 sudo docker compose -f /opt/watchtower-docker-compose.yaml restart
 
 # Перезапуск Netdata
-sudo docker compose -f /opt/netdata-docker-compose.yaml restart
+sudo docker compose -f /opt/netdata-docker-compose.yaml --env-file /opt/.env restart
 ```
 
 ### Доступ к веб-интерфейсу Qdrant
@@ -593,8 +1223,9 @@ sudo docker compose -f /opt/n8n-docker-compose.yaml --env-file /opt/.env down
 sudo docker compose -f /opt/flowise-docker-compose.yaml --env-file /opt/.env down
 sudo docker compose -f /opt/qdrant-docker-compose.yaml --env-file /opt/.env down
 sudo docker compose -f /opt/crawl4ai-docker-compose.yaml --env-file /opt/.env down
+sudo docker compose -f /opt/wordpress-docker-compose.yaml --env-file /opt/.env down
 sudo docker compose -f /opt/watchtower-docker-compose.yaml down
-sudo docker compose -f /opt/netdata-docker-compose.yaml down
+sudo docker compose -f /opt/netdata-docker-compose.yaml --env-file /opt/.env down
 ```
 
 ### Просмотр логов
@@ -703,9 +1334,8 @@ WordPress устанавливается автоматически вместе
    
    c. Добавьте в конец файла строку для ежедневного резервного копирования в 4:00 утра:
    ```
-   0 4 * * * /home/пользователь/cloud-local-n8n-flowise/setup-files/wp-backup.sh
+   0 4 * * * /home/${USER}/cloud-local-n8n-flowise/setup-files/wp-backup.sh
    ```
-   Замените "пользователь" на имя вашего пользователя.
    
    d. Сохраните изменения:
       - В nano: нажмите Ctrl+O, затем Enter, затем Ctrl+X
@@ -731,7 +1361,7 @@ WordPress устанавливается автоматически вместе
    # Остановите WordPress перед восстановлением
    sudo docker compose -f /opt/wordpress-docker-compose.yaml --env-file /opt/.env stop wordpress
    
-   # Восстановите базу данных (замените ИМЯ_ФАЙЛА на актуальное)
+   # Восстановите базу данных (замените ИМЯ_ФАЙЛА на актуальное имя резервной копии)
    sudo docker exec -i wordpress_db sh -c 'mysql -u${WP_DB_USER} -p${WP_DB_PASSWORD} ${WP_DB_NAME}' < /opt/backups/wordpress/ИМЯ_ФАЙЛА.sql
    
    # Запустите WordPress снова
@@ -743,7 +1373,7 @@ WordPress устанавливается автоматически вместе
    # Остановите WordPress перед восстановлением
    sudo docker compose -f /opt/wordpress-docker-compose.yaml --env-file /opt/.env stop wordpress
    
-   # Извлеките файлы (замените ИМЯ_ФАЙЛА на актуальное)
+   # Извлеките файлы (замените ИМЯ_ФАЙЛА на актуальное имя архива)
    sudo docker run --rm -v wordpress_data:/var/www/html -v /opt/backups/wordpress:/backups alpine sh -c "rm -rf /var/www/html/* && tar -xzf /backups/ИМЯ_ФАЙЛА.tar.gz -C /"
    
    # Запустите WordPress снова
@@ -867,7 +1497,7 @@ sudo docker logs caddy
 ### Диагностика всего стека
 Запустите диагностический скрипт:
 ```bash
-./setup-diag.sh
+./setup-files/setup-diag.sh
 ```
 
 ### Очистка неиспользуемых ресурсов Docker
