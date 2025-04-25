@@ -56,3 +56,15 @@ wordpress.$DOMAIN_NAME {
         Referrer-Policy "strict-origin-when-cross-origin"
     }
 }
+
+# Waha - WhatsApp HTTP API
+waha.$DOMAIN_NAME {
+    reverse_proxy waha:3000
+    header {
+        # Добавление заголовков безопасности
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}

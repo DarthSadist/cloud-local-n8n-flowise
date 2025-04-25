@@ -15,6 +15,8 @@ VOLUMES=(
     "n8n_user_files"    # Added from 03b
     "wordpress_data"    # For WordPress files
     "wordpress_db_data" # For WordPress database
+    "waha_sessions"     # For Waha WhatsApp sessions
+    "waha_media"        # For Waha media files
 )
 
 FAILED_VOLUMES=0

@@ -10,6 +10,9 @@
 - **Flowise** - интерфейс для создания LLM-приложений и чат-цепочек
 - **Qdrant** - векторная база данных для хранения и поиска эмбеддингов
   - Защищен API-ключом для безопасного доступа
+- **Waha** - WhatsApp HTTP API для интеграции с WhatsApp через веб-интерфейс
+  - Поддерживает отправку и получение сообщений через REST API
+  - Обеспечивает удобную интеграцию с мессенджером WhatsApp
 - **Crawl4AI** - веб-сервис для сбора данных и их обработки
 - **WordPress** - популярная CMS для создания веб-сайтов и блогов
   - Настроена с MariaDB для хранения данных
@@ -74,6 +77,20 @@
 - Масштабируемость и высокая производительность
 - Совместимость с многочисленными инструментами для анализа и визуализации данных
 - [Документация pgvector](https://github.com/pgvector/pgvector/blob/master/README.md)
+
+### Waha
+[Waha](https://waha.devlike.pro/) - это HTTP API для WhatsApp, позволяющий легко интегрировать WhatsApp-функциональность в любые приложения через RESTful API:
+- Возможность отправлять и получать сообщения WhatsApp через HTTP-запросы
+- Поддержка разных типов сообщений: текст, изображения, документы, аудио, видео, контакты
+- Создание и управление группами WhatsApp
+- Мониторинг статуса доставки сообщений
+- Встроенная панель управления для отслеживания сессий и статусов
+- Интеграция с n8n для построения полноценных чат-ботов
+- Управление несколькими WhatsApp-номерами из одного интерфейса
+- Поддержка webhook для мгновенного получения уведомлений о событиях
+- Простая аутентификация через QR-код стандартного WhatsApp Web
+- Возможность создания сложных сценариев обработки сообщений
+- [Документация по API](https://waha.devlike.pro/docs/api-reference/overview/)
 
 ### Redis
 [Redis](https://redis.io/docs/) - это высокопроизводительное хранилище данных в памяти, используемое как база данных, кэш и брокер сообщений:
@@ -1658,12 +1675,168 @@ WordPress устанавливается автоматически вместе
 - API Crawl4AI защищен JWT-аутентификацией
 - Все тома Docker настроены для сохранения данных между перезапусками
 
+## Примеры интеграции с Waha
+
+### Интеграция Waha с n8n
+
+WhatsApp HTTP API (Waha) можно легко интегрировать с n8n для создания автоматизированных чат-ботов и рабочих процессов:
+
+#### Пример 1: Простой WhatsApp-бот с n8n
+
+```javascript
+// Пример рабочего процесса n8n для создания простого WhatsApp-бота
+
+// 1. Создайте вебхук-триггер для получения уведомлений от Waha
+// 2. Добавьте узел Function для обработки сообщений:
+
+// Код для узла Function:
+const message = $input.item.json.body.message; // Получаем сообщение от пользователя
+const senderNumber = $input.item.json.body.from; // Номер отправителя
+
+let response = "";
+
+// Простая логика обработки команд
+if (message.text && message.text.toLowerCase() === 'привет') {
+  response = 'Привет! Я бот, созданный с помощью n8n и Waha API.';
+} else if (message.text && message.text.toLowerCase() === 'помощь') {
+  response = 'Доступные команды:\n- привет\n- помощь\n- время';
+} else if (message.text && message.text.toLowerCase() === 'время') {
+  const now = new Date();
+  response = `Текущее время: ${now.toLocaleString()}`;
+} else {
+  response = 'Не понимаю эту команду. Напишите "помощь" для списка команд.';
+}
+
+// Возвращаем данные для следующего узла
+return {
+  response: response,
+  senderNumber: senderNumber
+};
+
+// 3. Затем добавьте узел HTTP Request для отправки ответа:
+// URL: https://waha.${DOMAIN_NAME}/api/v1/messages/send
+// Method: POST
+// Headers: {"Content-Type": "application/json"}
+// Body: JSON
+// {
+//   "chatId": "{{$json["senderNumber"]}}",
+//   "text": "{{$json["response"]}}"
+// }
+```
+
+#### Пример 2: Интеграция Waha с Flowise и n8n
+
+Вы можете использовать Flowise для создания AI-бота, и затем интегрировать его с WhatsApp через Waha и n8n:
+
+1. Создайте чатбот в Flowise и опубликуйте API для него
+2. В n8n создайте рабочий процесс со следующими шагами:
+   - Webhook триггер для получения сообщений от Waha
+   - HTTP Request для отправки запроса к Flowise API
+   - HTTP Request для отправки ответа через Waha в WhatsApp
+
+```javascript
+// Код для адаптации данных для Flowise API
+const message = $input.item.json.body.message;
+const senderNumber = $input.item.json.body.from;
+const chatId = $input.item.json.body.chatId;
+
+// Сохраняем информацию о отправителе для ответа
+const senderInfo = {
+  senderNumber: senderNumber,
+  chatId: chatId,
+  text: message.text || ''
+};
+
+return senderInfo;
+
+// Затем настройте HTTP Request к Flowise API:
+// URL: https://flowise.${DOMAIN_NAME}/api/v1/prediction/{YOUR_FLOWISE_CHATFLOW_ID}
+// Method: POST
+// Headers: {"Content-Type": "application/json"}
+// Body: JSON
+// {
+//   "question": "{{$json["text"]}}",
+//   "sessionId": "{{$json["chatId"]}}"
+// }
+
+// И наконец, отправьте ответ через Waha API
+```
+
+### Регистрация Webhook в Waha
+
+Для получения уведомлений о событиях в WhatsApp необходимо зарегистрировать webhook в Waha:
+
+```bash
+# Зарегистрируйте webhook для получения всех сообщений
+curl -X POST "https://waha.${DOMAIN_NAME}/api/v1/webhooks" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://n8n.${DOMAIN_NAME}/webhook/waha",
+    "events": ["message", "message.ack"]
+  }'
+```
+
+Для управления webhook используйте следующие команды:
+
+```bash
+# Получить список всех webhook
+curl "https://waha.${DOMAIN_NAME}/api/v1/webhooks"
+
+# Удалить webhook по ID
+curl -X DELETE "https://waha.${DOMAIN_NAME}/api/v1/webhooks/{webhookId}"
+```
+
+### Управление сервисом Waha
+
+Для управления сервисом Waha отдельно от других сервисов, используйте следующие команды:
+
+```bash
+# Запуск Waha
+sudo docker compose -f /opt/waha-docker-compose.yaml --env-file /opt/.env up -d
+
+# Остановка Waha
+sudo docker compose -f /opt/waha-docker-compose.yaml --env-file /opt/.env stop
+
+# Перезапуск Waha (особенно полезно при необходимости перегенерировать QR-код для авторизации)
+sudo docker compose -f /opt/waha-docker-compose.yaml --env-file /opt/.env restart
+
+# Просмотр логов Waha
+sudo docker logs waha
+
+# Просмотр логов в реальном времени (для отладки)
+sudo docker logs -f waha
+```
+
+После перезапуска сервиса Waha необходимо повторно пройти авторизацию, отсканировав QR-код в панели управления по адресу https://waha.${DOMAIN_NAME}/dashboard/
+
 ## Устранение неполадок
 
 ### Проблемы с Caddy
 Если Caddy не запускается или не удается получить сертификаты:
 ```bash
 sudo docker logs caddy
+```
+
+### Проблемы с Waha
+Если у вас возникли проблемы с Waha:
+
+1. **Проверьте логи контейнера**:
+```bash
+sudo docker logs waha
+```
+
+2. **Перезапустите сервис для перегенерации QR-кода**:
+```bash
+sudo docker compose -f /opt/waha-docker-compose.yaml --env-file /opt/.env restart
+```
+
+3. **Проверьте сессии WhatsApp**:
+   - Откройте панель управления Waha по адресу https://waha.${DOMAIN_NAME}/dashboard
+   - Проверьте статус сессии и при необходимости отсканируйте QR-код заново
+
+4. **Проверьте API запросом**:
+```bash
+curl "https://waha.${DOMAIN_NAME}/api/v1/sessions"
 ```
 
 ### Диагностика всего стека

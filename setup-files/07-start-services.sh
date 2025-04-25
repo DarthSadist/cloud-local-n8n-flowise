@@ -167,6 +167,7 @@ QDRANT_COMPOSE_FILE="/opt/qdrant-docker-compose.yaml"
 CRAWL4AI_COMPOSE_FILE="/opt/crawl4ai-docker-compose.yaml"
 WATCHTOWER_COMPOSE_FILE="/opt/watchtower-docker-compose.yaml"
 NETDATA_COMPOSE_FILE="/opt/netdata-docker-compose.yaml"
+WAHA_COMPOSE_FILE="/opt/waha-docker-compose.yaml"
 ENV_FILE="/opt/.env" # Assuming .env is copied to /opt
 
 # Check if compose files exist
@@ -192,6 +193,10 @@ if [ ! -f "$WATCHTOWER_COMPOSE_FILE" ]; then
 fi
 if [ ! -f "$NETDATA_COMPOSE_FILE" ]; then
     echo "Error: $NETDATA_COMPOSE_FILE not found." >&2
+    exit 1
+fi
+if [ ! -f "$WAHA_COMPOSE_FILE" ]; then
+    echo "Error: $WAHA_COMPOSE_FILE not found." >&2
     exit 1
 fi
 if [ ! -f "$ENV_FILE" ]; then
@@ -292,7 +297,7 @@ ensure_docker_network() {
 # Статистика запуска
 successful_services=0
 failed_services=0
-total_services=7  # n8n, flowise, qdrant, crawl4ai, watchtower, netdata, adminer
+total_services=8  # n8n, flowise, qdrant, crawl4ai, watchtower, netdata, adminer, waha
 
 # Проверка и создание сети app-network для всех сервисов
 ensure_docker_network "app-network"
@@ -453,8 +458,30 @@ else
   echo "⚠️ Файл $WP_COMPOSE_FILE не найден. Пропускаем запуск WordPress." >&2
 fi
 
+# Запуск Waha
+echo "\n=======================" 
+echo "⚡ Запуск Waha..."
+echo "=======================\n"
+
+if [ -f "$WAHA_COMPOSE_FILE" ]; then
+  start_service "$WAHA_COMPOSE_FILE" "waha" "$ENV_FILE"
+  if [ $? -eq 0 ]; then
+    ((successful_services++))
+    # Увеличиваем счетчик total_services, если успешно запустили дополнительный сервис
+    ((total_services++))
+  else
+    ((failed_services++))
+    # Увеличиваем счетчик total_services даже при неудаче, так как мы пытались запустить сервис
+    ((total_services++))
+    echo "⚠️ Не удалось запустить сервис Waha, но продолжаем установку..." >&2
+  fi
+else
+  echo "⚠️ Файл $WAHA_COMPOSE_FILE не найден. Пропускаем запуск Waha." >&2
+  ((failed_services++))
+fi
+
 # Ждем инициализацию всех сервисов
-echo "\n\n==========================================="
+echo "\n\n===========================================" 
 echo "🕒 Ожидание инициализации всех сервисов..."
 echo "==========================================\n"
 sleep 8
@@ -485,6 +512,7 @@ check_service "crawl4ai"
 check_service "watchtower"
 check_service "netdata"
 check_service "adminer" # Не критично, но проверяем
+check_service "waha" # WhatsApp HTTP API
 
 # Проверка WordPress и связанных сервисов
 if sudo docker ps | grep -q "wordpress"; then

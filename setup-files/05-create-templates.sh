@@ -33,6 +33,7 @@ REQUIRED_TEMPLATES=(
     "./crawl4ai-docker-compose.yaml.template"
     "./watchtower-docker-compose.yaml.template"
     "./netdata-docker-compose.yaml.template"
+    "./waha-docker-compose.yaml.template"
     "./Caddyfile.template"
 )
 
