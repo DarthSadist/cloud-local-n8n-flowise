@@ -1370,6 +1370,9 @@ sudo docker compose -f /opt/watchtower-docker-compose.yaml restart
 
 # Перезапуск Netdata
 sudo docker compose -f /opt/netdata-docker-compose.yaml --env-file /opt/.env restart
+
+# Перезапуск Waha
+sudo docker compose -f /opt/waha-docker-compose.yaml --env-file /opt/.env restart
 ```
 
 ### Доступ к веб-интерфейсу Qdrant
@@ -1416,6 +1419,7 @@ sudo docker compose -f /opt/crawl4ai-docker-compose.yaml --env-file /opt/.env do
 sudo docker compose -f /opt/wordpress-docker-compose.yaml --env-file /opt/.env down
 sudo docker compose -f /opt/watchtower-docker-compose.yaml down
 sudo docker compose -f /opt/netdata-docker-compose.yaml --env-file /opt/.env down
+sudo docker compose -f /opt/waha-docker-compose.yaml --env-file /opt/.env down
 ```
 
 ### Просмотр логов
@@ -1437,6 +1441,12 @@ sudo docker logs wordpress_db
 
 # Просмотр логов Caddy
 sudo docker logs caddy
+
+# Просмотр логов Waha
+sudo docker logs waha
+
+# Просмотр логов Waha в реальном времени
+sudo docker logs -f waha
 ```
 
 ## Установка и настройка WordPress
