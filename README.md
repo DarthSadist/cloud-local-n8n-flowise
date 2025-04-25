@@ -1311,6 +1311,7 @@ Netdata предоставляет исчерпывающую информаци
 - **Qdrant**: https://qdrant.ваш-домен
 - **Crawl4AI**: https://crawl4ai.ваш-домен
 - **Netdata**: https://netdata.ваш-домен
+- **Waha**: https://waha.ваш-домен/dashboard/
 
 ## Учетные данные
 
