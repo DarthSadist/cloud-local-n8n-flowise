@@ -4,8 +4,16 @@ services:
     container_name: waha
     restart: unless-stopped
     environment:
-      - WAHA_WORKER_ID=waha
-      - WAHA_API_PORT=3000
+      - WAHA_WORKER_ID=${WAHA_WORKER_ID}
+      - WAHA_HOST=${WAHA_HOST}
+      - WAHA_API_PORT=${WAHA_API_PORT}
+      - WAHA_START_SESSION=${WAHA_START_SESSION}
+      - WAHA_API_KEY=${WAHA_API_KEY}
+      - WAHA_WEBHOOK_URL=${WAHA_WEBHOOK_URL}
+      - WAHA_WEBHOOK_ALLOWED_EVENTS=${WAHA_WEBHOOK_ALLOWED_EVENTS}
+      - WAHA_LOG_LEVEL=${WAHA_LOG_LEVEL}
+      - WAHA_MAX_ATTACHMENT_SIZE=${WAHA_MAX_ATTACHMENT_SIZE}
+      - WAHA_CHROME_HEADLESS=${WAHA_CHROME_HEADLESS}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
     volumes:
       - waha_sessions:/app/.sessions

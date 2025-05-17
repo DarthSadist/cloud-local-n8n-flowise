@@ -6,9 +6,21 @@ services:
     restart: unless-stopped
     container_name: flowise
     environment:
-      - PORT=3001
+      - PORT=${FLOWISE_PORT}
+      - HOST=${FLOWISE_HOST}
       - FLOWISE_USERNAME=${FLOWISE_USERNAME}
       - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
+      - DATABASE_TYPE=${FLOWISE_DATABASE_TYPE}
+      - DATABASE_HOST=${FLOWISE_DATABASE_HOST}
+      - DATABASE_PORT=${FLOWISE_DATABASE_PORT}
+      - DATABASE_NAME=${FLOWISE_DATABASE_NAME}
+      - DATABASE_USER=${FLOWISE_DATABASE_USER}
+      - DATABASE_PASSWORD=${FLOWISE_DATABASE_PASSWORD}
+      - QDRANT_HOST=${FLOWISE_QDRANT_HOST}
+      - QDRANT_PORT=${FLOWISE_QDRANT_PORT}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - LOG_LEVEL=${FLOWISE_LOG_LEVEL}
+      - DEBUG=${FLOWISE_DEBUG}
     volumes:
       - flowise_data:/root/.flowise
     networks:
