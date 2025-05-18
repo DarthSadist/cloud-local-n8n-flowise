@@ -14,6 +14,9 @@
   - Поддерживает отправку и получение сообщений через REST API
   - Обеспечивает удобную интеграцию с мессенджером WhatsApp
 - **Crawl4AI** - веб-сервис для сбора данных и их обработки
+- **Mem0** - интеллектуальный слой памяти для AI-ассистентов
+  - Запоминает пользовательские предпочтения и контекст взаимодействия
+  - Интегрируется с n8n и Flowise для создания персонализированных AI-решений
 - **WordPress** - популярная CMS для создания веб-сайтов и блогов
   - Настроена с MariaDB для хранения данных
   - Оптимизирована для производительности и безопасности
@@ -48,6 +51,18 @@
 - Полная совместимость с LangChain.js и интерфейсом Chains 
 - Поддержка встраивания в существующие веб-приложения через iframe
 - [Документация по API](https://docs.flowiseai.com/)
+
+### Mem0
+[Mem0](https://github.com/DarthSadist/mem0) ("мем-зеро") - это интеллектуальный слой памяти для AI-ассистентов, улучшающий персонализацию и контекстное взаимодействие:
+- Многоуровневая память для сохранения состояния пользователя, сессии и агента
+- Интеллектуальный поиск и извлечение релевантных воспоминаний на основе контекста
+- Адаптивная персонализация ответов на основе предыдущих взаимодействий
+- Использует существующие сервисы PostgreSQL и Qdrant для хранения данных
+- Предоставляет REST API для легкой интеграции с n8n и Flowise
+- Поддерживает различные LLM-модели, включая OpenAI, Anthropic и другие
+- Обеспечивает безопасность доступа через API-ключи
+- Предоставляет SDK для Python и JavaScript для удобной разработки
+- Идеально подходит для создания персонализированных чат-ботов, виртуальных ассистентов и клиентской поддержки
 
 ### Qdrant
 [Qdrant](https://qdrant.tech/documentation/) - это современная векторная база данных, специально разработанная для систем поиска по семантическому сходству:
@@ -1686,6 +1701,192 @@ WordPress устанавливается автоматически вместе
 - API Crawl4AI защищен JWT-аутентификацией
 - Все тома Docker настроены для сохранения данных между перезапусками
 
+## Примеры интеграции с Mem0
+
+### Интеграция Mem0 с n8n
+
+Mem0 можно легко интегрировать с n8n для создания персонализированных AI-рабочих процессов с памятью:
+
+#### Пример 1: Чат-бот с памятью пользовательских предпочтений
+
+Создадим рабочий процесс в n8n, который использует Mem0 для запоминания предпочтений пользователя:
+
+1. **Настройка триггера**:
+   - Добавьте ноду "Webhook" для получения сообщений от пользователя
+
+2. **Извлечение данных пользователя**:
+   - Добавьте ноду "Function" для извлечения user_id и текста сообщения
+
+3. **Поиск в памяти Mem0**:
+   - Добавьте ноду "HTTP Request" со следующими настройками:
+     ```
+     URL: http://mem0:3456/api/memories/search
+     Method: POST
+     Headers: 
+       Content-Type: application/json
+       Authorization: Bearer {{$env.MEM0_API_KEY}}
+     Body:
+     {
+       "query": "{{$node["Function"].json["message"]}}",
+       "user_id": "{{$node["Function"].json["user_id"]}}",
+       "limit": 5
+     }
+     ```
+
+4. **Генерация ответа с учетом памяти**:
+   - Добавьте ноду "OpenAI" для генерации ответа:
+     ```
+     Model: gpt-4o-mini
+     Prompt: Ответь на вопрос пользователя, используя следующие воспоминания: {{$json["results"].map(item => item.memory).join("\n")}}
+
+     Вопрос пользователя: {{$node["Function"].json["message"]}}
+     ```
+
+5. **Сохранение новой памяти**:
+   - Добавьте еще одну ноду "HTTP Request" для сохранения новой памяти:
+     ```
+     URL: http://mem0:3456/api/memories
+     Method: POST
+     Headers: 
+       Content-Type: application/json
+       Authorization: Bearer {{$env.MEM0_API_KEY}}
+     Body:
+     {
+       "user_id": "{{$node["Function"].json["user_id"]}}",
+       "messages": [
+         {"role": "user", "content": "{{$node["Function"].json["message"]}}"},
+         {"role": "assistant", "content": "{{$node["OpenAI"].json["response"]}}"}
+       ]
+     }
+     ```
+
+6. **Отправка ответа пользователю**:
+   - Добавьте ноду для отправки ответа пользователю (например, "Respond to Webhook" или другой канал связи)
+
+#### Пример 2: Анализ трендов в пользовательских запросах
+
+Создадим рабочий процесс в n8n, который анализирует тренды в запросах пользователей с помощью Mem0:
+
+```javascript
+// Нода Function для анализа трендов в памяти Mem0
+async function analyzeTrends() {
+  // Получаем все запросы за последние 7 дней
+  const lastWeekDate = new Date();
+  lastWeekDate.setDate(lastWeekDate.getDate() - 7);
+  
+  const response = await $http.request({
+    method: 'GET',
+    url: 'http://mem0:3456/api/memories',
+    headers: {
+      'Authorization': `Bearer ${$env.MEM0_API_KEY}`
+    },
+    qs: {
+      'from_date': lastWeekDate.toISOString(),
+      'limit': 1000
+    }
+  });
+  
+  // Анализируем тренды в запросах
+  const memories = response.data.results;
+  const topics = {};
+  
+  memories.forEach(memory => {
+    if (memory.role === 'user') {
+      // Простой анализ ключевых слов
+      const content = memory.content.toLowerCase();
+      ['product', 'price', 'support', 'feature', 'bug'].forEach(topic => {
+        if (content.includes(topic)) {
+          topics[topic] = (topics[topic] || 0) + 1;
+        }
+      });
+    }
+  });
+  
+  // Сортировка трендов по популярности
+  const sortedTopics = Object.entries(topics)
+    .sort((a, b) => b[1] - a[1])
+    .map(([topic, count]) => ({ topic, count }));
+  
+  return { trends: sortedTopics };
+}
+
+return await analyzeTrends();
+```
+
+### Интеграция Mem0 с Flowise
+
+Mem0 можно интегрировать с Flowise для создания персонализированных чат-ботов и AI-агентов с памятью:
+
+#### Пример: Создание чат-бота с памятью в Flowise
+
+В Flowise можно интегрировать Mem0 с помощью компонента "API Tool":
+
+1. **Создание компонента API Tool для Mem0**:
+   - Добавьте компонент "API Tool"
+   - Настройте его для работы с Mem0 API:
+     ```
+     Name: MemorySearch
+     Method: POST
+     URL: http://mem0:3456/api/memories/search
+     Headers: 
+       Content-Type: application/json
+       Authorization: Bearer {{$secrets.MEM0_API_KEY}}
+     ```
+
+2. **Создание второго API Tool для сохранения памяти**:
+   - Добавьте еще один компонент "API Tool"
+   - Настройте его для сохранения памяти:
+     ```
+     Name: MemorySave
+     Method: POST
+     URL: http://mem0:3456/api/memories
+     Headers: 
+       Content-Type: application/json
+       Authorization: Bearer {{$secrets.MEM0_API_KEY}}
+     ```
+
+3. **Создание цепочки чат-бота**:
+   - Добавьте компонент "Chat Input"
+   - Добавьте компонент "Function", чтобы подготовить запрос к Mem0:
+     ```javascript
+     const userId = inputs.chatInput.chatId || "default_user";
+     const query = inputs.chatInput.text;
+     
+     return {
+       query: query,
+       user_id: userId,
+       limit: 5
+     };
+     ```
+   - Свяжите этот компонент с "MemorySearch" API Tool
+   
+   - Добавьте компонент "LLM Chain", чтобы сгенерировать ответ с учетом памяти:
+     ```
+     Системный промпт: Ты персональный ассистент. Используй следующие воспоминания о пользователе для персонализации ответа: {{memories}}
+     
+     Пользовательский промпт: {{query}}
+     ```
+     Где `{{memories}}` - это результаты из MemorySearch, а `{{query}}` - текст запроса пользователя.
+
+   - Добавьте еще один компонент "Function" для подготовки данных для сохранения памяти:
+     ```javascript
+     return {
+       user_id: inputs.chatInput.chatId || "default_user",
+       messages: [
+         {role: "user", content: inputs.chatInput.text},
+         {role: "assistant", content: inputs.llmChain}
+       ]
+     };
+     ```
+   - Свяжите этот компонент с "MemorySave" API Tool
+   
+   - Добавьте компонент "Chat Output" и свяжите его с выходом LLM Chain
+
+4. **Настройка секретов**:
+   - В настройках Flowise добавьте секрет `MEM0_API_KEY` с вашим ключом API Mem0
+
+Таким образом, вы создадите в Flowise чат-бота, который использует Mem0 для хранения и извлечения памяти о пользователях.
+
 ## Примеры интеграции с Waha
 
 ### Интеграция Waha с n8n
@@ -1796,6 +1997,90 @@ curl "https://waha.${DOMAIN_NAME}/api/v1/webhooks"
 # Удалить webhook по ID
 curl -X DELETE "https://waha.${DOMAIN_NAME}/api/v1/webhooks/{webhookId}"
 ```
+
+### Управление сервисом Mem0
+
+Для управления сервисом Mem0 используйте следующие команды:
+
+```bash
+# Запуск Mem0
+sudo docker compose -f /opt/mem0-docker-compose.yaml --env-file /opt/.env up -d
+
+# Остановка Mem0
+sudo docker compose -f /opt/mem0-docker-compose.yaml --env-file /opt/.env stop
+
+# Перезапуск Mem0
+sudo docker compose -f /opt/mem0-docker-compose.yaml --env-file /opt/.env restart
+
+# Просмотр логов Mem0
+sudo docker logs mem0
+
+# Просмотр логов в режиме реального времени
+sudo docker logs -f mem0
+```
+
+#### Настройка OpenAI API Key
+
+Для работы Mem0 требуется действующий ключ OpenAI API. Чтобы его настроить:
+
+1. Отредактируйте файл `/opt/.env`:
+   ```bash
+   sudo nano /opt/.env
+   ```
+
+2. Найдите строку `OPENAI_API_KEY="sk-your-openai-api-key"` и замените ее на ваш реальный ключ OpenAI API.
+
+3. Сохраните файл и перезапустите сервис Mem0:
+   ```bash
+   sudo docker compose -f /opt/mem0-docker-compose.yaml --env-file /opt/.env restart
+   ```
+
+#### Резервное копирование данных Mem0
+
+Данные Mem0 хранятся в томе Docker `mem0_data`. Для резервного копирования используйте:
+
+```bash
+# Создание резервной копии
+sudo docker run --rm -v mem0_data:/data -v $(pwd):/backup alpine tar -czf /backup/mem0_backup_$(date +%Y%m%d).tar.gz /data
+
+# Восстановление из резервной копии
+sudo docker stop mem0
+sudo docker run --rm -v mem0_data:/data -v $(pwd):/backup alpine sh -c "rm -rf /data/* && tar -xzf /backup/mem0_backup_YYYYMMDD.tar.gz -C /"
+sudo docker start mem0
+```
+
+#### Очистка старых данных
+
+Для очистки старых данных из Mem0 можно использовать API запросы:
+
+```bash
+# Удаление старых записей (старше 30 дней)
+curl -X DELETE "http://localhost:3456/api/memories" \
+  -H "Authorization: Bearer $MEM0_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"older_than_days": 30}'
+```
+
+#### Устранение неполадок
+
+Если Mem0 не работает корректно, проверьте:
+
+1. **Правильность ключа OpenAI API**:
+   ```bash
+   # Проверка ключа OpenAI API
+   grep OPENAI_API_KEY /opt/.env
+   ```
+
+2. **Доступность сервиса**:
+   ```bash
+   # Проверка доступности API
+   curl -I http://localhost:3456/api/health
+   ```
+
+3. **Логи для диагностики**:
+   ```bash
+   sudo docker logs mem0
+   ```
 
 ### Управление сервисом Waha
 
