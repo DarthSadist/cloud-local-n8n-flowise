@@ -17,6 +17,7 @@ VOLUMES=(
     "wordpress_db_data" # For WordPress database
     "waha_sessions"     # For Waha WhatsApp sessions
     "waha_media"        # For Waha media files
+    "mem0_data"         # For Mem0 data storage
 )
 
 FAILED_VOLUMES=0

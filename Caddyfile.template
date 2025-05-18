@@ -68,3 +68,15 @@ waha.$DOMAIN_NAME {
         Referrer-Policy "strict-origin-when-cross-origin"
     }
 }
+
+# Mem0 - AI Memory Layer
+mem0.$DOMAIN_NAME {
+    reverse_proxy mem0:3456
+    header {
+        # Добавление заголовков безопасности
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}

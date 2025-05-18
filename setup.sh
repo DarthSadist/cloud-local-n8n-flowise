@@ -189,6 +189,7 @@ main() {
   echo "Netdata is available at: https://netdata.${DOMAIN_NAME}"
   echo "Qdrant Dashboard is available at: https://qdrant.${DOMAIN_NAME}/dashboard/"
   echo "Waha дашборд доступен по адресу: https://waha.${DOMAIN_NAME}/dashboard/"
+  echo "Mem0 API is available at: https://mem0.${DOMAIN_NAME}/"
   echo ""
   echo "Login credentials for n8n:"
   echo "Email: ${USER_EMAIL}"
@@ -231,6 +232,7 @@ main() {
   echo "- qdrant-docker-compose.yaml (Qdrant configuration)"
   echo "- crawl4ai-docker-compose.yaml (Crawl4AI configuration)"
   echo "- waha-docker-compose.yaml (Waha WhatsApp API configuration)"
+  echo "- mem0-docker-compose.yaml (Mem0 AI Memory Layer configuration)"
   echo "- netdata-docker-compose.yaml (Netdata configuration)"
   echo "- watchtower-docker-compose.yaml (Watchtower configuration)"
   echo "- .env (environment variables for all services)"
@@ -239,6 +241,7 @@ main() {
   echo "To restart services, execute the commands:"
   echo "docker compose -f n8n-docker-compose.yaml restart"
   echo "docker compose -f flowise-docker-compose.yaml restart"
+  echo "docker compose -f mem0-docker-compose.yaml restart"
 }
 
 # Run main function

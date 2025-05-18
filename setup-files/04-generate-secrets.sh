@@ -178,6 +178,12 @@ WAHA_WEBHOOK_ALLOWED_EVENTS="message,message.any,message.ack"
 WAHA_LOG_LEVEL="info"
 WAHA_MAX_ATTACHMENT_SIZE="16"
 WAHA_CHROME_HEADLESS="true"
+
+# --- Mem0 Settings ---
+MEM0_API_KEY="$(openssl rand -hex 16)"
+OPENAI_API_KEY="sk-your-openai-api-key" # Замените на реальный ключ OpenAI API
+MEM0_HOST="0.0.0.0"
+MEM0_PORT="3456"
 EOL
 
 # Проверка успешности создания .env файла

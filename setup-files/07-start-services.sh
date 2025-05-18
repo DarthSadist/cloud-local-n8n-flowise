@@ -168,6 +168,7 @@ CRAWL4AI_COMPOSE_FILE="/opt/crawl4ai-docker-compose.yaml"
 WATCHTOWER_COMPOSE_FILE="/opt/watchtower-docker-compose.yaml"
 NETDATA_COMPOSE_FILE="/opt/netdata-docker-compose.yaml"
 WAHA_COMPOSE_FILE="/opt/waha-docker-compose.yaml"
+MEM0_COMPOSE_FILE="/opt/mem0-docker-compose.yaml"
 ENV_FILE="/opt/.env" # Assuming .env is copied to /opt
 
 # Check if compose files exist
@@ -197,6 +198,10 @@ if [ ! -f "$NETDATA_COMPOSE_FILE" ]; then
 fi
 if [ ! -f "$WAHA_COMPOSE_FILE" ]; then
     echo "Error: $WAHA_COMPOSE_FILE not found." >&2
+    exit 1
+fi
+if [ ! -f "$MEM0_COMPOSE_FILE" ]; then
+    echo "Error: $MEM0_COMPOSE_FILE not found." >&2
     exit 1
 fi
 if [ ! -f "$ENV_FILE" ]; then
@@ -297,7 +302,7 @@ ensure_docker_network() {
 # Статистика запуска
 successful_services=0
 failed_services=0
-total_services=8  # n8n, flowise, qdrant, crawl4ai, watchtower, netdata, adminer, waha
+total_services=9  # n8n, flowise, qdrant, crawl4ai, watchtower, netdata, adminer, waha, mem0
 
 # Проверка и создание сети app-network для всех сервисов
 ensure_docker_network "app-network"
@@ -477,6 +482,28 @@ if [ -f "$WAHA_COMPOSE_FILE" ]; then
   fi
 else
   echo "⚠️ Файл $WAHA_COMPOSE_FILE не найден. Пропускаем запуск Waha." >&2
+  ((failed_services++))
+fi
+
+# Запуск Mem0
+echo "\n=======================" 
+echo "⚡ Запуск Mem0..."
+echo "=======================\n"
+
+if [ -f "$MEM0_COMPOSE_FILE" ]; then
+  start_service "$MEM0_COMPOSE_FILE" "mem0" "$ENV_FILE"
+  if [ $? -eq 0 ]; then
+    ((successful_services++))
+    # Увеличиваем счетчик total_services, если успешно запустили дополнительный сервис
+    ((total_services++))
+  else
+    ((failed_services++))
+    # Увеличиваем счетчик total_services даже при неудаче, так как мы пытались запустить сервис
+    ((total_services++))
+    echo "⚠️ Не удалось запустить сервис Mem0, но продолжаем установку..." >&2
+  fi
+else
+  echo "⚠️ Файл $MEM0_COMPOSE_FILE не найден. Пропускаем запуск Mem0." >&2
   ((failed_services++))
 fi
 
