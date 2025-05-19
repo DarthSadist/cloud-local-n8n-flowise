@@ -331,6 +331,17 @@ if [ $? -eq 0 ]; then
     exit 1
   else
     echo "✅ Сеть app-network успешно создана"
+    
+    # Инициализация библиотек для n8n
+    echo "\n======================"
+    echo "⚙️ Инициализация библиотек для n8n..."
+    echo "=======================\n"
+    
+    if [ -f "$(dirname "$0")/n8n-init-libraries.sh" ]; then
+      "$(dirname "$0")/n8n-init-libraries.sh"
+    else
+      echo "⚠️ Скрипт инициализации библиотек не найден"
+    fi
   fi
 else
   ((failed_services++))

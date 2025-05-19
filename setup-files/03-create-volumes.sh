@@ -8,6 +8,7 @@ VOLUMES=(
     "n8n_data"
     "n8n_postgres_data" # Consistent name for postgres
     "n8n_redis_data"    # Consistent name for redis
+    "n8n_modules"       # For npm modules in n8n
     "flowise_data"
     "qdrant_storage"    # Consistent name for qdrant
     "caddy_data"

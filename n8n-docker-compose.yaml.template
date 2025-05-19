@@ -5,6 +5,8 @@ volumes:
     external: true
   n8n_postgres_data:
     external: true
+  n8n_modules: # Volume for npm modules
+    external: true
   caddy_data:
     external: true
   caddy_config:
@@ -12,7 +14,9 @@ volumes:
 
 services:
   n8n:
-    image: n8nio/n8n:latest
+    build:
+      context: ./n8n-custom
+      dockerfile: Dockerfile
     container_name: n8n
     restart: unless-stopped
     # Environment variables for n8n
@@ -43,11 +47,14 @@ services:
       - EXECUTIONS_PROCESS=main
       - QUEUE_BULL_REDIS_HOST=n8n_redis
       - QUEUE_BULL_REDIS_PORT=6379
+      - NODE_PATH=/usr/local/lib/node_modules
+      - N8N_CUSTOM_EXTENSIONS=/home/node/.n8n/custom_modules
     # To use Redis for queueing, uncomment the line above and ensure the Redis service is enabled.
     # All DB_* variables configure PostgreSQL as the backend.
 
     volumes:
       - n8n_data:/home/node/.n8n
+      - n8n_modules:/usr/local/lib/node_modules
       # - /some/host/path:/files # If you need to mount host files
     networks:
       - app-network
