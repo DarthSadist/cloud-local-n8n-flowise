@@ -15,7 +15,7 @@ volumes:
 services:
   n8n:
     build:
-      context: /home/den/cloud-local-n8n-flowise/n8n-custom
+      context: ./n8n-custom
       dockerfile: Dockerfile
     container_name: n8n
     restart: unless-stopped
