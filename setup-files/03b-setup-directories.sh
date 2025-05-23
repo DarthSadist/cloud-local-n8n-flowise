@@ -25,6 +25,19 @@ else
   fi
 fi
 
+# Create /opt directory if it doesn't exist
+if [ ! -d "/opt" ]; then
+    echo "Creating /opt directory..."
+    sudo mkdir -p /opt
+    sudo chmod 755 /opt
+fi
+
+# Create /opt/flowise directory with proper permissions
+echo "Creating /opt/flowise directory..."
+sudo mkdir -p /opt/flowise
+sudo chmod 777 /opt/flowise
+echo "✅ Directory /opt/flowise created with proper permissions"
+
 # Создание директории с правильными правами
 echo "📂 Создаём директорию /opt/n8n..."
 sudo mkdir -p /opt/n8n
