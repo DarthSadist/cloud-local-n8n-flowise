@@ -2,40 +2,43 @@ version: '3'
 
 services:
   flowise:
-    image: flowiseai/flowise:1.4.8
+    image: flowiseai/flowise:latest
     restart: unless-stopped
     container_name: flowise
+    command: /bin/sh -c "flowise start"
+    ports:
+      - "127.0.0.1:${FLOWISE_PORT}:3001"
     environment:
-      - PORT=${FLOWISE_PORT}
-      - HOST=${FLOWISE_HOST}
-      - USERNAME=${FLOWISE_USERNAME}
-      - PASSWORD=${FLOWISE_PASSWORD}
+      - PORT=3001
+      - HOST=0.0.0.0
+      - FLOWISE_USERNAME=${FLOWISE_USERNAME}
+      - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
       # Специальные настройки для импорта
       - DATABASE_TYPE=sqlite
-      - DATABASE_PATH=/root/.flowise/database.sqlite
-      # Настройки для отключения транзакций при импорте
-      - DISABLE_TRANSACTIONS=true
-      - TYPEORM_DISABLE_TRANSACTIONS=true
-      - TYPEORM_TRANSACTION_RETRY_COUNT=5
-      # Настройки ORM для решения проблем с транзакциями
-      - SQLITE_USE_WAL=false
-      - SQLITE_JOURNALMODE=DELETE
-      # Настройки для отладки
-      - LOG_LEVEL=debug
-      - DEBUG=true
+      - FLOWISE_SECRETKEY_OVERWRITE=mysecretkey123
+      # Настройки для интеграции с Qdrant
+      - QDRANT_HOST=${FLOWISE_QDRANT_HOST}
+      - QDRANT_PORT=${FLOWISE_QDRANT_PORT}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      # Настройки логирования и отладки
+      - LOG_LEVEL=${FLOWISE_LOG_LEVEL}
+      - DEBUG=${FLOWISE_DEBUG}
       # Отключаем телеметрию
-      - TELEMETRY=false
+      - TELEMETRY_ENABLED=false
+      # Настройки производительности
+      - MEMORY_CACHE_ENABLED=true
+      - MEMORY_CACHE_MAX=1000
+      - MEMORY_CACHE_TTL=3600
     volumes:
       - flowise_data:/root/.flowise
     networks:
       - app-network
-    # Добавляем проверку здоровья для контейнера
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/v1/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 30s
+      retries: 5
+      start_period: 60s
 
 networks:
   app-network:
