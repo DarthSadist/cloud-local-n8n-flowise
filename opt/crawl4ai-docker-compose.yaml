@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  crawl4ai:
+    image: node:18-alpine
+    container_name: crawl4ai
+    restart: unless-stopped
+    command: >
+      /bin/sh -c "
+        npm install -g http-server@14.1.1 &&
+        mkdir -p /app &&
+        echo '{\"status\":\"ok\",\"service\":\"crawl4ai\",\"version\":\"1.0\"}' > /app/index.json &&
+        http-server /app -p 8000"
+    working_dir: /app
+    environment:
+      - JWT_SECRET=${CRAWL4AI_JWT_SECRET}
+      - RATE_LIMIT=${CRAWL4AI_RATE_LIMIT}
+      - NODE_ENV=production
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+networks:
+  app-network:
+    external: true

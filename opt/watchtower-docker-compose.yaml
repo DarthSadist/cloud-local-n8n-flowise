@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  watchtower:
+    image: containrrr/watchtower:1.6.0
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --schedule "0 0 4 * * *" --cleanup --rolling-restart
+    environment:
+      - TZ=${GENERIC_TIMEZONE}
+      - WATCHTOWER_NOTIFICATIONS=email
+      - WATCHTOWER_NOTIFICATION_EMAIL_FROM=${USER_EMAIL}
+      - WATCHTOWER_NOTIFICATION_EMAIL_TO=${USER_EMAIL}
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.2'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
