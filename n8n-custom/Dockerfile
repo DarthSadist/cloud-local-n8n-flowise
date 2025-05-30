@@ -58,8 +58,5 @@ ENV NODE_PATH=/usr/local/lib/node_modules
 # Создание директории для кастомных модулей
 RUN mkdir -p /home/node/.n8n/custom_modules
 
-# Копирование кастомных хелперов
-COPY ./helpers /home/node/.n8n/custom_modules/
-
-# Настройка прав доступа
-RUN chown -R node:node /home/node/.n8n/custom_modules
+# Копирование кастомных хелперов с правильными правами
+COPY --chown=node:node ./helpers /home/node/.n8n/custom_modules/
