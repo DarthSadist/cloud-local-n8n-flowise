@@ -1,24 +1,23 @@
 FROM n8nio/n8n:latest
 
-# Установка системных зависимостей
-RUN apt-get update && apt-get install -y \
-    build-essential \
+# Установка системных зависимостей для Alpine Linux
+RUN apk add --no-cache \
+    build-base \
     python3 \
-    libjpeg-dev \
+    jpeg-dev \
     libpng-dev \
-    libgif-dev \
-    librsvg2-dev \
-    libtiff-dev \
+    giflib-dev \
+    librsvg-dev \
+    tiff-dev \
     libwebp-dev \
     ffmpeg \
     graphicsmagick \
     imagemagick \
     tesseract-ocr \
-    tesseract-ocr-rus \
-    tesseract-ocr-eng \
-    libreoffice \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    tesseract-ocr-data-rus \
+    tesseract-ocr-data-eng \
+    libreoffice
+# Примечание: если пакеты tesseract-ocr-data-rus/eng недоступны, языки можно скачать вручную или через ENV TESSDATA_PREFIX
 
 # Установка глобальных зависимостей
 RUN npm install -g \
