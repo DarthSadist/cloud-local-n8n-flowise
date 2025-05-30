@@ -1,5 +1,7 @@
 FROM n8nio/n8n:latest
 
+USER root
+
 # Установка системных зависимостей для Alpine Linux
 RUN apk add --no-cache \
     build-base \
@@ -18,6 +20,8 @@ RUN apk add --no-cache \
     tesseract-ocr-data-eng \
     libreoffice
 # Примечание: если пакеты tesseract-ocr-data-rus/eng недоступны, языки можно скачать вручную или через ENV TESSDATA_PREFIX
+
+USER node
 
 # Установка глобальных зависимостей
 RUN npm install -g \
