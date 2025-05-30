@@ -21,25 +21,20 @@ RUN apk add --no-cache \
     libreoffice
 # Примечание: если пакеты tesseract-ocr-data-rus/eng недоступны, языки можно скачать вручную или через ENV TESSDATA_PREFIX
 
-USER node
-
-# Установка глобальных зависимостей
+# Установка глобальных npm-зависимостей (от root)
 RUN npm install -g \
-    # Базовые библиотеки
     axios \
     lodash \
     moment \
     @qdrant/js-client-rest \
     openai \
     langchain \
-    # Обработка изображений и мультимедиа
     sharp \
     @ffmpeg/ffmpeg \
     gm \
     image-size \
     heic-convert \
     tesseract.js \
-    # Работа с документами
     pdf-lib \
     pdf-parse \
     xlsx \
@@ -47,15 +42,15 @@ RUN npm install -g \
     mammoth \
     @shelf/aws-lambda-libreoffice \
     html-pdf \
-    # Работа с архивами и файлами
     jszip \
     archiver \
     unzipper \
-    # Работа с данными и HTTP
     node-fetch \
     form-data \
     csv-parse \
     cheerio
+
+USER node
 
 # Настройка переменных окружения
 ENV NODE_PATH=/usr/local/lib/node_modules
