@@ -1,6 +1,12 @@
 version: '3'
 
 services:
+  # ВАЖНО: При обновлении версии Flowise возможны ошибки миграции БД!
+  # Если база не содержит важных данных, рекомендуется очищать volume Postgres:
+  # docker-compose down
+  # sudo rm -rf /path/to/your/postgres/volume/data/*
+  # docker-compose up -d
+  # Это позволит избежать ошибок типа "column ... does not exist" при запуске новой версии.
   flowise:
     image: flowiseai/flowise
     restart: unless-stopped
