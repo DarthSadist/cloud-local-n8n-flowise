@@ -1,16 +1,22 @@
 volumes:
   n8n_data:
     external: true
+
   n8n_redis_data: # Volume for Redis data
     external: true
+
   n8n_postgres_data:
     external: true
+
   n8n_modules: # Volume for npm modules
     external: true
+
   caddy_data:
     external: true
+
   caddy_config:
     external: true
+
 
 services:
   n8n:
