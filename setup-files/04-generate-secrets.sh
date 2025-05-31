@@ -145,6 +145,8 @@ FLOWISE_DEBUG="false"
 
 # Путь к кастомным модулям n8n
 SRC_N8N_CUSTOM="${SRC_N8N_CUSTOM:-/home/den/cloud-local-n8n-flowise/n8n-custom}"
+# Путь к директории назначения кастомных модулей n8n
+DST_N8N_CUSTOM="${DST_N8N_CUSTOM:-/opt/n8n-custom}"
 
 # Settings for PostgreSQL
 POSTGRES_DB="$POSTGRES_DB_ESCAPED"
