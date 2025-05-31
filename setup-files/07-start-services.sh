@@ -13,7 +13,15 @@ for var in "${REQUIRED_PATH_VARS[@]}"; do
         exit 1
     fi
     # Проверка существования директории для SRC_N8N_CUSTOM и DST_N8N_CUSTOM
-    if [[ $var == SRC_N8N_CUSTOM || $var == DST_N8N_CUSTOM ]] && [ ! -d "${!var}" ]; then
+    if [[ $var == SRC_N8N_CUSTOM ]]; then
+        if [ ! -d "${!var}" ]; then
+            echo "⚠️  Директория ${!var} не найдена для переменной $var, создаю..."
+            mkdir -p "${!var}"
+            echo "✅ Директория ${!var} создана."
+        else
+            echo "✅ Директория ${!var} уже существует."
+        fi
+    elif [[ $var == DST_N8N_CUSTOM ]] && [ ! -d "${!var}" ]; then
         echo "❌ КРИТИЧЕСКАЯ ОШИБКА: Директория ${!var} не найдена для переменной $var!" >&2
         exit 1
     fi
