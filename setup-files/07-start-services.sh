@@ -1,6 +1,56 @@
 #!/bin/bash
 
+# Проверка переменных окружения и путей
+REQUIRED_PATH_VARS=(SRC_N8N_CUSTOM DST_N8N_CUSTOM ENV_FILE N8N_COMPOSE_FILE FLOWISE_COMPOSE_FILE QDRANT_COMPOSE_FILE CRAWL4AI_COMPOSE_FILE WATCHTOWER_COMPOSE_FILE NETDATA_COMPOSE_FILE WAHA_COMPOSE_FILE MEM0_COMPOSE_FILE)
+for var in "${REQUIRED_PATH_VARS[@]}"; do
+    if [ -z "${!var}" ]; then
+        echo "❌ КРИТИЧЕСКАЯ ОШИБКА: Переменная $var не задана!" >&2
+        exit 1
+    fi
+    # Проверка существования файла для compose-файлов (если переменная содержит 'COMPOSE_FILE')
+    if [[ $var == *COMPOSE_FILE ]] && [ ! -f "${!var}" ]; then
+        echo "❌ КРИТИЧЕСКАЯ ОШИБКА: Файл ${!var} не найден для переменной $var!" >&2
+        exit 1
+    fi
+    # Проверка существования директории для SRC_N8N_CUSTOM и DST_N8N_CUSTOM
+    if [[ $var == SRC_N8N_CUSTOM || $var == DST_N8N_CUSTOM ]] && [ ! -d "${!var}" ]; then
+        echo "❌ КРИТИЧЕСКАЯ ОШИБКА: Директория ${!var} не найдена для переменной $var!" >&2
+        exit 1
+    fi
+    # Проверка существования файла для ENV_FILE
+    if [[ $var == ENV_FILE ]] && [ ! -f "${!var}" ]; then
+        echo "❌ КРИТИЧЕСКАЯ ОШИБКА: ENV файл ${!var} не найден!" >&2
+        exit 1
+    fi
+    # Можно добавить дополнительные проверки для других переменных при необходимости
+    # Например, проверка email
+    if [[ $var == USER_EMAIL ]] && [ -z "${!var}" ]; then
+        echo "⚠️  ВНИМАНИЕ: USER_EMAIL не задан. Некоторые сервисы могут не работать корректно."
+    fi
+    
+    # Для других переменных можно добавить проверки по необходимости
+
+done
+
 echo "=================================================================="
+# Проверка и создание Docker volume для Flowise
+if ! sudo docker volume inspect flowise_data > /dev/null 2>&1; then
+    echo "⚙️  Volume flowise_data не найден, создаю..."
+    sudo docker volume create flowise_data
+    echo "✅ Volume flowise_data создан."
+else
+    echo "✅ Volume flowise_data уже существует."
+fi
+
+# Проверка и создание Docker volume для Qdrant
+if ! sudo docker volume inspect qdrant_storage > /dev/null 2>&1; then
+    echo "⚙️  Volume qdrant_storage не найден, создаю..."
+    sudo docker volume create qdrant_storage
+    echo "✅ Volume qdrant_storage создан."
+else
+    echo "✅ Volume qdrant_storage уже существует."
+fi
+
 echo "🚀 Запуск всех сервисов (n8n, Flowise, Qdrant, Adminer, и др.)"
 echo "=================================================================="
 

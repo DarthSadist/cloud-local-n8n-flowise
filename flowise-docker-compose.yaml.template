@@ -1,32 +1,62 @@
 version: '3'
 
+# =========================
+# ОБЯЗАТЕЛЬНО К ПРОЧТЕНИЮ
+# =========================
+# 1. Этот docker-compose файл запускает только Flowise.
+#    Postgres не управляется этим файлом и должен быть развернут отдельно, если используется.
+#    Volume flowise_data — только для хранения настроек и данных Flowise, не содержит данных Postgres.
+#    Не удаляйте flowise_data без необходимости, чтобы не потерять настройки Flowise.
+# 2. Если вы используете внешний Postgres, управляйте его volume отдельно, этот Compose-файл не создаёт и не очищает volume для Postgres.
+# 3. Для работы требуются внешние ресурсы: volume и сеть. Создайте их заранее командами:
+#    docker network create app-network
+#    docker volume create flowise_data
+#    Если ресурсы не будут созданы — запуск завершится ошибкой.
+# 4. Все переменные окружения (см. ниже) ОБЯЗАТЕЛЬНЫ. Пример .env:
+#    FLOWISE_PORT=3000
+#    FLOWISE_HOST=0.0.0.0
+#    FLOWISE_USERNAME=admin
+#    FLOWISE_PASSWORD=admin
+#    FLOWISE_DATABASE_TYPE=postgres
+#    FLOWISE_DATABASE_HOST=postgres
+#    FLOWISE_DATABASE_PORT=5432
+#    FLOWISE_DATABASE_NAME=flowise
+#    FLOWISE_DATABASE_USER=flowise
+#    FLOWISE_DATABASE_PASSWORD=flowise
+#    FLOWISE_QDRANT_HOST=qdrant
+#    FLOWISE_QDRANT_PORT=6333
+#    FLOWISE_QDRANT_API_KEY=your-qdrant-key
+#    FLOWISE_LOG_LEVEL=info
+#    FLOWISE_DEBUG=0
+# 5. Переменная DEBUG: используйте FLOWISE_DEBUG для единообразия (если поддерживается сервисом). Если сервис требует именно DEBUG — оставьте, но обязательно поясните это в .env и документации.
+# 6. При смене версии Flowise возможны ошибки миграции БД! Если база не содержит важных данных, очистку volume производите только для соответствующего компонента (например, внешнего Postgres), а не для flowise_data.
+# =========================
+
 services:
-  # ВАЖНО: При обновлении версии Flowise возможны ошибки миграции БД!
-  # Если база не содержит важных данных, рекомендуется очищать volume Postgres:
-  # docker-compose down
-  # sudo rm -rf /path/to/your/postgres/volume/data/*
-  # docker-compose up -d
-  # Это позволит избежать ошибок типа "column ... does not exist" при запуске новой версии.
   flowise:
     image: flowiseai/flowise
     restart: unless-stopped
     container_name: flowise
     environment:
+    ports:
+      - "${FLOWISE_PORT}:${FLOWISE_PORT}"
+    ports:
+      - "${FLOWISE_PORT}:${FLOWISE_PORT}"
       - PORT=${FLOWISE_PORT}
       - HOST=${FLOWISE_HOST}
       - FLOWISE_USERNAME=${FLOWISE_USERNAME}
       - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
-      - DATABASE_TYPE=${FLOWISE_DATABASE_TYPE}
-      - DATABASE_HOST=${FLOWISE_DATABASE_HOST}
-      - DATABASE_PORT=${FLOWISE_DATABASE_PORT}
-      - DATABASE_NAME=${FLOWISE_DATABASE_NAME}
-      - DATABASE_USER=${FLOWISE_DATABASE_USER}
-      - DATABASE_PASSWORD=${FLOWISE_DATABASE_PASSWORD}
-      - QDRANT_HOST=${FLOWISE_QDRANT_HOST}
-      - QDRANT_PORT=${FLOWISE_QDRANT_PORT}
-      - QDRANT_API_KEY=${QDRANT_API_KEY}
-      - LOG_LEVEL=${FLOWISE_LOG_LEVEL}
-      - DEBUG=${FLOWISE_DEBUG}
+      - FLOWISE_DATABASE_TYPE=${FLOWISE_DATABASE_TYPE}
+      - FLOWISE_DATABASE_HOST=${FLOWISE_DATABASE_HOST}
+      - FLOWISE_DATABASE_PORT=${FLOWISE_DATABASE_PORT}
+      - FLOWISE_DATABASE_NAME=${FLOWISE_DATABASE_NAME}
+      - FLOWISE_DATABASE_USER=${FLOWISE_DATABASE_USER}
+      - FLOWISE_DATABASE_PASSWORD=${FLOWISE_DATABASE_PASSWORD}
+      - FLOWISE_QDRANT_HOST=${FLOWISE_QDRANT_HOST}
+      - FLOWISE_QDRANT_PORT=${FLOWISE_QDRANT_PORT}
+      - FLOWISE_QDRANT_API_KEY=${FLOWISE_QDRANT_API_KEY}
+      - FLOWISE_LOG_LEVEL=${FLOWISE_LOG_LEVEL}
+      - FLOWISE_DEBUG=${FLOWISE_DEBUG}
     volumes:
       - flowise_data:/root/.flowise
     networks:

@@ -27,6 +27,10 @@ services:
       QDRANT__TELEMETRY__DISABLED: ${QDRANT_TELEMETRY_DISABLED}
       # ВАЖНО: Не дублируйте параметры оптимизаторов Qdrant!
       # Каждый параметр должен быть определён только один раз, иначе Qdrant не запустится.
+      # Не задавайте эти параметры одновременно через переменные среды и внутри volume/config-файлов Qdrant (storage_config.yaml)!
+      # Пример корректной настройки:
+      # QDRANT__STORAGE__OPTIMIZERS__INDEXING_THRESHOLD: 10000
+      # QDRANT__STORAGE__OPTIMIZERS__MEMMAP_THRESHOLD: 20000
       QDRANT__STORAGE__OPTIMIZERS__INDEXING_THRESHOLD: ${QDRANT_INDEXING_THRESHOLD}
       QDRANT__STORAGE__OPTIMIZERS__MEMMAP_THRESHOLD: ${QDRANT_MEMMAP_THRESHOLD}
 
