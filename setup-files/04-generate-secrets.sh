@@ -143,6 +143,9 @@ FLOWISE_QDRANT_PORT="6333"
 FLOWISE_LOG_LEVEL="info"
 FLOWISE_DEBUG="false"
 
+# Путь к кастомным модулям n8n
+SRC_N8N_CUSTOM="${SRC_N8N_CUSTOM:-/home/den/cloud-local-n8n-flowise/n8n-custom}"
+
 # Settings for PostgreSQL
 POSTGRES_DB="$POSTGRES_DB_ESCAPED"
 POSTGRES_USER="$POSTGRES_USER_ESCAPED"
