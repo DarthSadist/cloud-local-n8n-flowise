@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Экспортируем переменные окружения из .env (приоритет /opt/.env)
+set -a
+if [ -f /opt/.env ]; then
+    source /opt/.env
+elif [ -f .env ]; then
+    source .env
+fi
+set +a
+
 # Проверка переменных окружения и путей
 REQUIRED_PATH_VARS=(SRC_N8N_CUSTOM DST_N8N_CUSTOM ENV_FILE N8N_COMPOSE_FILE FLOWISE_COMPOSE_FILE QDRANT_COMPOSE_FILE CRAWL4AI_COMPOSE_FILE WATCHTOWER_COMPOSE_FILE NETDATA_COMPOSE_FILE WAHA_COMPOSE_FILE MEM0_COMPOSE_FILE)
 for var in "${REQUIRED_PATH_VARS[@]}"; do
