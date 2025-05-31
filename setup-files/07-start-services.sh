@@ -30,9 +30,14 @@ for var in "${REQUIRED_PATH_VARS[@]}"; do
         else
             echo "✅ Директория ${!var} уже существует."
         fi
-    elif [[ $var == DST_N8N_CUSTOM ]] && [ ! -d "${!var}" ]; then
-        echo "❌ КРИТИЧЕСКАЯ ОШИБКА: Директория ${!var} не найдена для переменной $var!" >&2
-        exit 1
+    elif [[ $var == DST_N8N_CUSTOM ]]; then
+        if [ ! -d "${!var}" ]; then
+            echo "⚠️  Директория ${!var} не найдена для переменной $var, создаю..."
+            mkdir -p "${!var}"
+            echo "✅ Директория ${!var} создана."
+        else
+            echo "✅ Директория ${!var} уже существует."
+        fi
     fi
     # Проверка существования файла для ENV_FILE
     if [[ $var == ENV_FILE ]] && [ ! -f "${!var}" ]; then
